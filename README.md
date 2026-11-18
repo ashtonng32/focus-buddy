@@ -3,9 +3,14 @@
 A phone timer that works like an accountability buddy. See [docs/PRD.md](docs/PRD.md).
 Out-of-scope ideas go in [LATER.md](LATER.md).
 
-## Status: Slice 1 (Skeleton)
+## Status: all four slices built
 
-Google sign-in (Supabase Auth, one allowed email), installable PWA, Start / Focus / Check-in / Settings screens, local countdown. Timers and settings live in the browser for now; slice 2 moves them to Supabase and adds push.
+1. Skeleton: Google sign-in, installable PWA, Start / Focus / Settings.
+2. Timers that fire: server-owned timers, pg_cron + Edge Function, Web Push check-ins with action buttons.
+3. Notion: real Today tasks, suggestion rules, Done write-back (subtasks too), break ideas, Stuck / Break / Talk it through.
+4. Polish: Stop from every screen, parked tasks (skipped for 3 hours after "Different task for a bit"), 2-minute pit stop after 90 minutes of flow, nightly Work Log entry (hourly cron, writes from 9 pm America/Denver).
+
+Testing tip: set Low to 1 minute in Settings; switch back to real lengths for real use.
 
 ## Run it
 
