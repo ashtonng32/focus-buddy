@@ -1,4 +1,4 @@
-// Generates simple PWA icons (indigo square with a white ring). Run: node scripts/make-icons.mjs
+// Generates simple PWA icons (violet square with a white ring). Run: node scripts/make-icons.mjs
 import { deflateSync } from "node:zlib";
 import { writeFileSync } from "node:fs";
 
@@ -26,7 +26,7 @@ function png(size) {
       const d = Math.hypot(x - cx, y - cx);
       const ring = d <= rOuter && d >= rInner;
       const o = y * (size * 4 + 1) + 1 + x * 4;
-      const [r, g, b] = ring ? [255, 255, 255] : [79, 70, 229];
+      const [r, g, b] = ring ? [255, 255, 255] : [91, 63, 208];
       raw[o] = r; raw[o + 1] = g; raw[o + 2] = b; raw[o + 3] = 255;
     }
   }

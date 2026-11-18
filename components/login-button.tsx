@@ -1,13 +1,13 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Pill } from "@/components/pill";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginButton() {
   return (
-    <Button
-      size="lg"
-      className="h-14 px-8 text-lg"
+    <Pill
+      variant="light"
+      className="min-h-16 text-lg"
       onClick={() =>
         createClient().auth.signInWithOAuth({
           provider: "google",
@@ -16,6 +16,6 @@ export function LoginButton() {
       }
     >
       Sign in with Google
-    </Button>
+    </Pill>
   );
 }

@@ -1,53 +1,22 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { PushSetup } from "@/components/push-setup";
+import {
+  BreakScreen,
+  CheckInScreen,
+  DoneScreen,
+  FocusScreen,
+  Light,
+  StartScreen,
+  StuckScreen,
+  TalkScreen,
+  TaskPreviewScreen,
+} from "@/components/screens";
+import { claudeLink, copyPrompt, stuckPrompt } from "@/lib/claude-link";
 import { useAppState, type Kind, type Mode, type SuggestedTask } from "@/lib/app-state";
 
-const MODES: { mode: Mode; label: string; hint: string }[] = [
-  { mode: "low", label: "Low", hint: "A gentle start" },
-  { mode: "steady", label: "Steady", hint: "A normal block" },
-  { mode: "flow", label: "Flow", hint: "Long and deep" },
-];
-
-// Opens the Claude Android app with a ready-made first message (falls back to the website).
-// The same text is copied to the clipboard in case the app opens with an empty box.
-function stuckPrompt(task: string) {
-  return (
-    `I'm using my Focus Buddy timer and I'm stuck on "${task}". ` +
-    `Help me get unstuck without any guilt. Ask me one short question about what's getting in the way, ` +
-    `then help me find a tiny first step. If it helps, look at my Today list in Notion.`
-  );
-}
-
-function claudeLink(task: string) {
-  const q = encodeURIComponent(stuckPrompt(task));
-  const web = `https://claude.ai/new?q=${q}`;
-  return `intent://claude.ai/new?q=${q}#Intent;scheme=https;package=com.anthropic.claude;S.browser_fallback_url=${encodeURIComponent(web)};end`;
-}
-
-async function copyPrompt(task: string) {
-  try {
-    await navigator.clipboard.writeText(stuckPrompt(task));
-    return true;
-  } catch {
-    return false; // clipboard blocked: the link still carries the prompt
-  }
-}
-
 const NO_TASK: SuggestedTask = { id: null, title: "Your next thing", firstStep: "Just open it." };
-
-function fmt(ms: number) {
-  const total = Math.max(0, Math.ceil(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const mm = String(m).padStart(2, "0");
-  const ss = String(s).padStart(2, "0");
-  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
-}
 
 // 0 until the first tick after mount (Date.now() can't be read during prerender).
 function useNow(active: boolean) {
@@ -73,22 +42,6 @@ type Preview = {
   fromSessionId?: string;
 };
 
-function Screen({ children }: { children: ReactNode }) {
-  return <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 p-6">{children}</main>;
-}
-
-function Heading({ children }: { children: ReactNode }) {
-  return <h1 className="text-center text-3xl font-semibold">{children}</h1>;
-}
-
-function LinkButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return (
-    <button onClick={onClick} className="text-sm text-muted-foreground underline">
-      {children}
-    </button>
-  );
-}
-
 export function FocusBuddy() {
   const app = useAppState();
   const { session, lastEnded, settings } = app;
@@ -97,7 +50,7 @@ export function FocusBuddy() {
   const [copied, setCopied] = useState<boolean | null>(null);
   const now = useNow(Boolean(session));
 
-  if (!app.ready || (session && now === 0)) return <main className="flex-1" />;
+  if (!app.ready || (session && now === 0)) return <Light />;
 
   async function openPreview(kind: Preview["kind"], mode: Mode, exclude: string[], fromSessionId?: string) {
     setBusy(true);
@@ -120,115 +73,70 @@ export function FocusBuddy() {
   if (session) {
     const remaining = session.endsAt - (now + app.offset);
 
-    // Break
     if (session.kind === "break") {
       return (
-        <Screen>
-          <Heading>{remaining > 0 ? "Take a break" : "Break's over"}</Heading>
-          {remaining > 0 && (
-            <>
-              <p className="text-center text-2xl">{session.taskTitle}</p>
-              {session.firstStep && <p className="text-center text-muted-foreground">{session.firstStep}</p>}
-              <p className="text-center text-7xl font-semibold tabular-nums">{fmt(remaining)}</p>
-              <Button variant="outline" className="h-16 text-lg" onClick={() => app.anotherIdea()}>
-                Another idea
-              </Button>
-            </>
-          )}
-          <Button className="h-20 text-xl" onClick={() => app.checkin("back")}>
-            I&apos;m back
-          </Button>
-          <div className="text-center">
-            <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
-          </div>
-        </Screen>
+        <BreakScreen
+          idea={session.taskTitle}
+          note={session.firstStep}
+          remainingMs={remaining}
+          over={remaining <= 0}
+          onAnother={() => app.anotherIdea()}
+          onBack={() => app.checkin("back")}
+          onStop={() => app.stop()}
+        />
       );
     }
+
+    const mode: Mode = session.mode ?? "steady";
+    const kind = session.kind;
 
     // Check-in (the notification's buttons answer the same question)
     if (remaining <= 0) {
       // After 90 minutes of total flow, the check-in adds a pit stop line.
       const flowMs = session.focusTotalMs + (session.endsAt - session.startedAt);
-      const pitStop = session.kind === "focus" && session.mode === "flow" && flowMs >= 90 * 60_000;
       return (
-        <Screen>
-          <Heading>Time&apos;s up. How&apos;s it going?</Heading>
-          {pitStop && (
-            <p className="text-center text-muted-foreground">
-              You&apos;ve been in flow a while. Want a 2-minute pit stop? Water, stretch, then keep going.
-            </p>
-          )}
-          <Button className="h-20 text-xl" onClick={() => app.checkin("keep_going")}>
-            Keep going
-          </Button>
-          <Button variant="secondary" className="h-20 text-xl" onClick={() => app.checkin("done")}>
-            Done
-          </Button>
-          <Button variant="outline" className="h-20 text-xl" onClick={() => app.checkin("stuck")}>
-            I&apos;m stuck
-          </Button>
-          <div className="text-center">
-            <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
-          </div>
-        </Screen>
+        <CheckInScreen
+          pitStop={kind === "focus" && mode === "flow" && flowMs >= 90 * 60_000}
+          onKeep={() => app.checkin("keep_going")}
+          onDone={() => app.checkin("done")}
+          onStuck={() => app.checkin("stuck")}
+          onStop={() => app.stop()}
+        />
       );
     }
 
-    // Focus
     return (
-      <Screen>
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold">{session.taskTitle}</h1>
-          <p className="mt-2 text-lg text-muted-foreground">{session.firstStep}</p>
-        </div>
-        <p className="text-center text-7xl font-semibold tabular-nums" aria-live="off">
-          {fmt(remaining)}
-        </p>
-        <Button className="h-20 text-xl" onClick={() => app.checkin("done")}>
-          Done
-        </Button>
-        <Button variant="outline" className="h-20 text-xl" onClick={() => app.checkin("stuck")}>
-          I&apos;m stuck
-        </Button>
-        <div className="text-center">
-          <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
-        </div>
-      </Screen>
+      <FocusScreen
+        mode={mode}
+        kind={kind}
+        title={session.taskTitle}
+        firstStep={session.firstStep}
+        remainingMs={remaining}
+        totalMs={session.endsAt - session.startedAt}
+        onDone={() => app.checkin("done")}
+        onStuck={() => app.checkin("stuck")}
+        onStop={() => app.stop()}
+      />
     );
   }
 
   // Suggested task, before the timer starts: Start, or swap for a different one
   if (preview) {
     const task = preview.tasks[preview.idx];
-    const minutes = preview.kind === "switch" ? settings.switch : settings[preview.mode];
     return (
-      <Screen>
-        <div className="text-center">
-          <h1 className="text-3xl font-semibold">{task.title}</h1>
-          <p className="mt-2 text-lg text-muted-foreground">{task.firstStep}</p>
-        </div>
-        <Button
-          className="h-24 text-2xl"
-          disabled={busy}
-          onClick={() =>
-            begin({ kind: preview.kind, mode: preview.mode, taskId: task.id, fromSessionId: preview.fromSessionId })
-          }
-        >
-          Start · {minutes} min
-        </Button>
-        {preview.tasks.length > 1 && (
-          <Button
-            variant="outline"
-            className="h-16 text-lg"
-            onClick={() => setPreview({ ...preview, idx: (preview.idx + 1) % preview.tasks.length })}
-          >
-            Different task
-          </Button>
-        )}
-        <div className="text-center">
-          <LinkButton onClick={() => setPreview(null)}>Back</LinkButton>
-        </div>
-      </Screen>
+      <TaskPreviewScreen
+        task={task}
+        mode={preview.mode}
+        kind={preview.kind}
+        minutes={preview.kind === "switch" ? settings.switch : settings[preview.mode]}
+        canSwap={preview.tasks.length > 1}
+        busy={busy}
+        onStart={() =>
+          begin({ kind: preview.kind, mode: preview.mode, taskId: task.id, fromSessionId: preview.fromSessionId })
+        }
+        onSwap={() => setPreview({ ...preview, idx: (preview.idx + 1) % preview.tasks.length })}
+        onBack={() => setPreview(null)}
+      />
     );
   }
 
@@ -238,126 +146,57 @@ export function FocusBuddy() {
 
     if (lastEnded.status === "done") {
       return (
-        <Screen>
-          <Heading>One done is a good day.</Heading>
-          {lastEnded.notionFailed && (
-            <p className="text-center text-muted-foreground">
-              I couldn&apos;t update Notion. Mark &ldquo;{lastEnded.taskTitle}&rdquo; done there.
-            </p>
-          )}
-          <Button className="h-20 text-xl" onClick={() => app.resolve(lastEnded.id, "handled")}>
-            Next task
-          </Button>
-          <Button
-            variant="outline"
-            className="h-20 text-xl"
-            disabled={busy}
-            onClick={() => begin({ kind: "break", mode, fromSessionId: lastEnded.id })}
-          >
-            Take a break
-          </Button>
-          <div className="text-center">
-            <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
-          </div>
-        </Screen>
+        <DoneScreen
+          title={lastEnded.taskTitle}
+          notionFailed={lastEnded.notionFailed}
+          busy={busy}
+          onNext={() => app.resolve(lastEnded.id, "handled")}
+          onBreak={() => begin({ kind: "break", mode, fromSessionId: lastEnded.id })}
+          onStop={() => app.stop()}
+        />
       );
     }
 
     // Stuck, and off talking it through in the Claude app
     if (lastEnded.talking) {
       return (
-        <Screen>
-          <Heading>Talk it through</Heading>
-          <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">{stuckPrompt(lastEnded.taskTitle)}</p>
-          <Button
-            variant="secondary"
-            className="h-16 text-lg"
-            onClick={async () => setCopied(await copyPrompt(lastEnded.taskTitle))}
-          >
-            {copied === true ? "Copied. Paste it into Claude" : copied === false ? "Couldn't copy. Press and hold the text above" : "Copy message"}
-          </Button>
-          <a
-            href={claudeLink(lastEnded.taskTitle)}
-            className="flex h-16 items-center justify-center rounded-lg border text-lg"
-          >
-            Open Claude
-          </a>
-          <Button className="h-20 text-xl" onClick={() => app.resolve(lastEnded.id, "handled")}>
-            I&apos;m back
-          </Button>
-          <div className="text-center">
-            <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
-          </div>
-        </Screen>
+        <TalkScreen
+          message={stuckPrompt(lastEnded.taskTitle)}
+          copied={copied}
+          claudeHref={claudeLink(lastEnded.taskTitle)}
+          onCopy={async () => setCopied(await copyPrompt(lastEnded.taskTitle))}
+          onBack={() => app.resolve(lastEnded.id, "handled")}
+          onStop={() => app.stop()}
+        />
       );
     }
 
     // Stuck: What do you need?
     return (
-      <Screen>
-        <Heading>What do you need?</Heading>
-        <p className="text-center text-muted-foreground">Being stuck is okay.</p>
-        <Button
-          className="h-20 text-xl"
-          disabled={busy}
-          onClick={() => begin({ kind: "break", mode, fromSessionId: lastEnded.id })}
-        >
-          A break
-        </Button>
-        <Button
-          variant="secondary"
-          className="h-20 text-xl"
-          disabled={busy}
-          onClick={() =>
-            openPreview("switch", mode, lastEnded.notionTaskId ? [lastEnded.notionTaskId] : [], lastEnded.id)
-          }
-        >
-          Different task for a bit
-        </Button>
-        <Button
-          variant="outline"
-          className="h-20 text-xl"
-          onClick={async () => {
-            copyPrompt(lastEnded.taskTitle); // inside the tap, so the browser allows it
-            await app.resolve(lastEnded.id, "talk");
-            window.location.href = claudeLink(lastEnded.taskTitle);
-          }}
-        >
-          Talk it through
-        </Button>
-        <div className="text-center">
-          <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
-        </div>
-      </Screen>
+      <StuckScreen
+        busy={busy}
+        onBreak={() => begin({ kind: "break", mode, fromSessionId: lastEnded.id })}
+        onSwitch={() =>
+          openPreview("switch", mode, lastEnded.notionTaskId ? [lastEnded.notionTaskId] : [], lastEnded.id)
+        }
+        onTalk={async () => {
+          copyPrompt(lastEnded.taskTitle); // inside the tap, so the browser allows it
+          await app.resolve(lastEnded.id, "talk");
+          window.location.href = claudeLink(lastEnded.taskTitle);
+        }}
+        onStop={() => app.stop()}
+      />
     );
   }
 
   // Start
   return (
-    <Screen>
-      <Heading>How are you feeling?</Heading>
-      {app.failed && (
-        <p className="text-center text-sm text-muted-foreground">Can&apos;t reach the server. Check your connection.</p>
-      )}
-      <div className="flex flex-col gap-3">
-        {MODES.map(({ mode, label, hint }) => (
-          <Button
-            key={mode}
-            className="h-24 flex-col text-2xl"
-            disabled={busy}
-            onClick={() => openPreview("focus", mode, [])}
-          >
-            {label}
-            <span className="text-sm font-normal opacity-80">
-              {hint} · {settings[mode]} min
-            </span>
-          </Button>
-        ))}
-      </div>
-      <PushSetup />
-      <Link href="/settings" className="mt-2 text-center text-sm text-muted-foreground underline">
-        Settings
-      </Link>
-    </Screen>
+    <StartScreen
+      minutes={{ low: settings.low, steady: settings.steady, flow: settings.flow }}
+      busy={busy}
+      failed={app.failed}
+      push={<PushSetup />}
+      onPick={(mode) => openPreview("focus", mode, [])}
+    />
   );
 }

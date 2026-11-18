@@ -6,6 +6,8 @@ const PUBLIC = ["/login", "/auth", "/manifest.webmanifest", "/sw.js", "/icons", 
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Local design review only (never set in production): skip sign-in so screens can be viewed.
+  if (process.env.NODE_ENV !== "production" && process.env.DEV_PREVIEW === "1") return NextResponse.next();
   if (PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
     return NextResponse.next();
   }

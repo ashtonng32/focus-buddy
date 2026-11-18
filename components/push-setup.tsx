@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Bell } from "lucide-react";
+import { Pill } from "@/components/pill";
 
 const KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -57,21 +58,21 @@ export function PushSetup() {
 
   if (status === "needs-permission") {
     return (
-      <Button variant="outline" className="h-14 text-lg" onClick={enable}>
-        Turn on check-ins
-      </Button>
+      <Pill variant="outline" className="mt-1 min-h-14 text-base" onClick={enable}>
+        <Bell className="size-5" /> Turn on check-ins
+      </Pill>
     );
   }
   if (status === "denied") {
     return (
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="px-1 text-center text-sm text-[#6c6290]">
         Notifications are blocked. Allow them for this app in Chrome&apos;s site settings.
       </p>
     );
   }
   if (status === "unsupported") {
     return (
-      <p className="text-center text-sm text-muted-foreground">
+      <p className="px-1 text-center text-sm text-[#6c6290]">
         This browser can&apos;t send check-ins. Open the installed app on your phone.
       </p>
     );
