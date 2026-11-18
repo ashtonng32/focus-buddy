@@ -131,6 +131,10 @@ export function useAppState() {
         return [];
       }
     },
+    /** Fire-and-forget: a suggested task was swapped away before starting. */
+    skip: (task: { id: string; title: string }) => {
+      call("/api/skip", { taskId: task.id, title: task.title }).catch(() => {});
+    },
     start: (b: { kind?: Kind; mode: Mode; taskId?: string | null; fromSessionId?: string }) =>
       act(() => call("/api/session", b)),
     checkin: (action: "keep_going" | "done" | "stuck" | "back") =>

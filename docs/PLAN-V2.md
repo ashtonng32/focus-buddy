@@ -7,8 +7,8 @@ Source: [PRD-V2.md](PRD-V2.md). Same rules as the MVP: one slice at a time, test
 | Step | What | State |
 | --- | --- | --- |
 | 0. Duet setup | Daily Log database in Notion, Duet section on AI Instructions | **Done** (Nov 18). Still Ashton's: schedule the 8:30 pm Duet check-in (Sun–Fri) in the Duet research preview |
-| 5. Daily Log | Migration, nightly job, Effort on sessions | **Code written**, not yet applied or deployed |
-| 6. Avoidance help | Count switches and skips per task, write Avoided tasks | Not started |
+| 5. Daily Log | Migration, nightly job, Effort on sessions | **Live** (Nov 18) |
+| 6. Avoidance help | Count switches and skips per task, write Avoided tasks | **Code written**, not yet applied or deployed |
 | 7. Weekly page | Duet writes "Your week" each Sunday | No code; after 5 workdays of data |
 
 ## Notion IDs
@@ -39,11 +39,14 @@ Duet may create tomorrow's row the night before (Date, Day, Day type); the night
 
 ## Step 6 — Avoidance help (code)
 
-- Count per task, per 7 days: "switched away from" (Different task) and "skipped" (Different task suggestion swapped before starting). Needs a skip event; today a swap before the timer starts is not recorded, so add a `skip` event action and log it from the Focus screen.
-- Nightly job writes tasks at 3+ into Daily Log → Avoided tasks.
-- Duet offers the breakdown (already in its instructions).
+- A **skip** is swapping a suggested task for another before its timer starts (new `task_skips` table, `POST /api/skip`; browsing past the same task again within 10 minutes counts once). A **switch** is the existing "Different task for a bit".
+- View `task_avoidance`: per task, skips + switches over the last 7 days.
+- The nightly job writes tasks with 3+ hits that are still open on Today into the Daily Log's **Avoided tasks** (it replaces the list each run, so a task drops off once it is done or the week rolls over). A day with no blocks still gets a row if something is being avoided.
+- Duet reads Avoided tasks and offers the breakdown (already in its instructions). No count is ever shown to Ashton.
 
 **Done when:** a task skipped 3 times shows up in the check-in with an offer.
+
+**Test on the Pixel:** swap the same task away on three separate occasions (10+ minutes apart, or use Different task for a bit), then run `/api/cron/dailylog?force=1` and look at Avoided tasks in Notion.
 
 ## Step 7 — Weekly page (no code)
 

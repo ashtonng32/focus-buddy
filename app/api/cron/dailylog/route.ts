@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { upsertDailyLog, type DailyNumbers } from "@/lib/server/notion";
+import { fetchToday, upsertDailyLog, type DailyNumbers } from "@/lib/server/notion";
 
 const TZ = () => process.env.APP_TIMEZONE || "America/Denver";
 
@@ -39,19 +39,27 @@ export async function POST(req: Request) {
 
   const db = createAdminClient();
   const { data } = await db.from("daily_summary").select("*").eq("day", day).maybeSingle();
-  if (!data || !Number(data.blocks)) return NextResponse.json({ skipped: "no blocks" });
+
+  // Avoided: hit 3+ times (skipped or switched away from) in 7 days, and still open on Today.
+  const { data: hits } = await db.from("task_avoidance").select("notion_task_id, task_title, total").gte("total", 3);
+  const open = new Set((await fetchToday().catch(() => [])).map((t) => t.id));
+  const avoided = (hits ?? []).filter((h) => open.has(h.notion_task_id));
+
+  // A day with no blocks still gets a row when something is being avoided: that is when the offer helps.
+  if (!Number(data?.blocks) && !avoided.length) return NextResponse.json({ skipped: "no blocks" });
 
   const numbers: DailyNumbers = {
-    mode: data.first_mode ? MODE_NAMES[data.first_mode as keyof typeof MODE_NAMES] : null,
-    focusMinutes: Number(data.focus_minutes),
-    blocks: Number(data.blocks),
-    tasksDone: Number(data.tasks_done),
-    keepGoings: Number(data.keep_goings),
-    stuckTaps: Number(data.stuck_taps),
-    switches: Number(data.switches),
-    breaks: Number(data.breaks),
+    mode: data?.first_mode ? MODE_NAMES[data.first_mode as keyof typeof MODE_NAMES] : null,
+    focusMinutes: Number(data?.focus_minutes ?? 0),
+    blocks: Number(data?.blocks ?? 0),
+    tasksDone: Number(data?.tasks_done ?? 0),
+    keepGoings: Number(data?.keep_goings ?? 0),
+    stuckTaps: Number(data?.stuck_taps ?? 0),
+    switches: Number(data?.switches ?? 0),
+    breaks: Number(data?.breaks ?? 0),
+    avoided: avoided.map((h) => h.notion_task_id),
   };
-  if (dry) return NextResponse.json({ dry: true, day, numbers });
+  if (dry) return NextResponse.json({ dry: true, day, numbers, avoidedTitles: avoided.map((h) => h.task_title) });
 
   const label = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(
     new Date(`${day}T12:00:00Z`),

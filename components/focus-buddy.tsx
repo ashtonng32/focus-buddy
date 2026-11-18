@@ -142,7 +142,10 @@ export function FocusBuddy() {
         onStart={() =>
           begin({ kind: preview.kind, mode: preview.mode, taskId: task.id, fromSessionId: preview.fromSessionId })
         }
-        onSwap={() => setPreview({ ...preview, idx: (preview.idx + 1) % preview.tasks.length })}
+        onSwap={() => {
+          if (task.id) app.skip({ id: task.id, title: task.title });
+          setPreview({ ...preview, idx: (preview.idx + 1) % preview.tasks.length });
+        }}
         onBack={() => setPreview(null)}
       />
     );

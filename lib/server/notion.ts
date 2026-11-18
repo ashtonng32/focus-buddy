@@ -157,6 +157,8 @@ export type DailyNumbers = {
   stuckTaps: number;
   switches: number;
   breaks: number;
+  /** Notion page ids of tasks avoided 3+ times in the last 7 days; replaces the row's Avoided tasks. */
+  avoided: string[];
 };
 
 /**
@@ -178,6 +180,7 @@ export async function upsertDailyLog(day: string, label: string, n: DailyNumbers
     "Stuck taps": { number: n.stuckTaps },
     Switches: { number: n.switches },
     Breaks: { number: n.breaks },
+    "Avoided tasks": { relation: n.avoided.map((id) => ({ id })) },
   };
   // The first mode of the day is recorded once; later runs keep it.
   const existing = found.results[0];
