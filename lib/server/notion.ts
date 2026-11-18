@@ -148,19 +148,56 @@ export async function fetchBreakLists(): Promise<Record<string, string[]>> {
   return lists;
 }
 
-/** Creates one Work Log entry (Logged By = Focus Buddy). Returns the new page id. */
-export async function createWorkLog(entry: { title: string; date: string; whatGotDone: string }): Promise<string> {
+export type DailyNumbers = {
+  mode: "Low" | "Steady" | "Flow" | null;
+  focusMinutes: number;
+  blocks: number;
+  tasksDone: number;
+  keepGoings: number;
+  stuckTaps: number;
+  switches: number;
+  breaks: number;
+};
+
+/**
+ * Fills in the Daily Log row for `day` (YYYY-MM-DD) with Focus Buddy's numbers. Duet may already
+ * have created the row the night before (Date, Day, Day type); if so only the numbers are written,
+ * otherwise a new row is created. Never touches Day type, Day feel, Sleep or Journal.
+ */
+export async function upsertDailyLog(day: string, label: string, n: DailyNumbers): Promise<{ id: string; created: boolean }> {
+  const ds = process.env.NOTION_DAILYLOG_DS;
+  const found = await notion<any>(`/data_sources/${ds}/query`, {
+    method: "POST",
+    body: JSON.stringify({ filter: { property: "Day", date: { equals: day } }, page_size: 1 }),
+  });
+  const numbers: Record<string, any> = {
+    "Focus minutes": { number: n.focusMinutes },
+    Blocks: { number: n.blocks },
+    "Tasks done": { number: n.tasksDone },
+    "Keep goings": { number: n.keepGoings },
+    "Stuck taps": { number: n.stuckTaps },
+    Switches: { number: n.switches },
+    Breaks: { number: n.breaks },
+  };
+  // The first mode of the day is recorded once; later runs keep it.
+  const existing = found.results[0];
+  const hasMode = !!existing?.properties?.Mode?.select;
+  if (n.mode && !hasMode) numbers.Mode = { select: { name: n.mode } };
+
+  if (existing) {
+    await notion(`/pages/${existing.id}`, { method: "PATCH", body: JSON.stringify({ properties: numbers }) });
+    return { id: existing.id as string, created: false };
+  }
   const res = await notion<any>("/pages", {
     method: "POST",
     body: JSON.stringify({
-      parent: { type: "data_source_id", data_source_id: process.env.NOTION_WORKLOG_DS },
+      parent: { type: "data_source_id", data_source_id: ds },
       properties: {
-        Entry: { title: [{ text: { content: entry.title } }] },
-        Date: { date: { start: entry.date } },
-        "Logged By": { select: { name: "Focus Buddy" } },
-        "What Got Done": { rich_text: [{ text: { content: entry.whatGotDone.slice(0, 1900) } }] },
+        Date: { title: [{ text: { content: label } }] },
+        Day: { date: { start: day } },
+        ...numbers,
       },
     }),
   });
-  return res.id as string;
+  return { id: res.id as string, created: true };
 }

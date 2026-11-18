@@ -25,6 +25,7 @@ export async function POST(req: Request) {
   let title = "Your next thing";
   let firstStep = "Just open it.";
   let taskId: string | null = null;
+  let effort: string | null = null;
   if (kind === "break") {
     const idea = await pickBreak(body.mode).catch(() => ({ idea: "Step away from the screen for a bit.", firstStep: "" }));
     title = idea.idea;
@@ -35,6 +36,7 @@ export async function POST(req: Request) {
       title = task.title;
       firstStep = task.firstStep;
       taskId = task.id;
+      effort = task.effort;
     }
   }
 
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
       kind,
       mode: body.mode,
       notion_task_id: taskId,
+      effort,
       task_title: title,
       first_step: firstStep,
       started_at: new Date(now).toISOString(),

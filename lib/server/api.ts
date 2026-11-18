@@ -50,6 +50,7 @@ export type SessionRow = {
   handled_at: string | null;
   notion_failed: boolean;
   focus_total_ms: number;
+  effort: string | null;
 };
 
 export function sessionOut(r: SessionRow | null) {
