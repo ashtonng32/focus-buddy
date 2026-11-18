@@ -514,6 +514,62 @@ export function StuckScreen({
   );
 }
 
+/* ---------------- Back to the task you were stuck on ---------------- */
+
+export function BackToTaskScreen({
+  title,
+  minutes,
+  busy,
+  onPick,
+  onElse,
+  onStop,
+}: {
+  title: string;
+  minutes: Record<Mode, number>;
+  busy: boolean;
+  onPick: (m: Mode) => void;
+  onElse: () => void;
+  onStop: () => void;
+}) {
+  return (
+    <Light>
+      <div className="rise flex flex-1 flex-col justify-center gap-6">
+        <div>
+          <p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#8a7fb5]">Back to</p>
+          <Title className="text-[2.5rem]">{title}</Title>
+          <p className="mt-2 text-lg text-[#6c6290]">Pick a timer and jump back in.</p>
+        </div>
+        <div className="flex flex-col gap-3">
+          {(Object.keys(MODES) as Mode[]).map((mode) => {
+            const m = MODES[mode];
+            return (
+              <button
+                key={mode}
+                disabled={busy}
+                onClick={() => onPick(mode)}
+                className={`flex w-full items-center gap-4 rounded-[1.75rem] p-4 text-left transition active:scale-[0.98] disabled:opacity-60 ${m.card}`}
+              >
+                <span className={`flex size-14 shrink-0 items-center justify-center rounded-full ${m.iconBg} ${m.iconFg}`}>
+                  <m.Icon className="size-7" />
+                </span>
+                <span className="flex-1">
+                  <span className="font-display block text-[1.5rem] leading-tight">{m.label}</span>
+                  <span className="text-sm text-[#6c6290]">{m.hint}</span>
+                </span>
+                <span className={`rounded-full px-3 py-1.5 text-sm font-semibold ${m.chip}`}>{minutes[mode]} min</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="flex flex-col items-center gap-1">
+        <TextButton onClick={onElse}>Pick something else</TextButton>
+        <TextButton onClick={onStop}>Stop for now</TextButton>
+      </div>
+    </Light>
+  );
+}
+
 /* ---------------- Talk it through (waiting while in the Claude app) ---------------- */
 
 export function TalkScreen({

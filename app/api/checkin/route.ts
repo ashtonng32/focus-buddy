@@ -39,6 +39,15 @@ export async function POST(req: Request) {
   } else if (action === "back") {
     // "I'm back" ends a break; nothing further to handle.
     await db.from("sessions").update({ status: "done", handled_at: new Date().toISOString() }).eq("id", session.id);
+    // A break that began from "I'm stuck": offer to go back to that task.
+    if (session.from_session_id) {
+      await db
+        .from("sessions")
+        .update({ resume_pending: true })
+        .eq("id", session.from_session_id)
+        .eq("status", "stuck")
+        .not("notion_task_id", "is", null);
+    }
   } else if (action === "done") {
     if (session.notion_task_id) notionFailed = !(await markTaskDone(session.notion_task_id));
     await db.from("sessions").update({ status: "done", notion_failed: notionFailed }).eq("id", session.id);

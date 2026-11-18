@@ -50,6 +50,7 @@ export async function POST(req: Request) {
       mode: body.mode,
       notion_task_id: taskId,
       effort,
+      from_session_id: kind === "break" ? (body.fromSessionId ?? null) : null,
       task_title: title,
       first_step: firstStep,
       started_at: new Date(now).toISOString(),
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   if (body.fromSessionId) {
-    await db.from("sessions").update({ handled_at: new Date().toISOString() }).eq("id", body.fromSessionId);
+    await db.from("sessions").update({ handled_at: new Date().toISOString(), resume_pending: false }).eq("id", body.fromSessionId);
     if (kind === "break" || kind === "switch") {
       await db.from("events").insert({ session_id: body.fromSessionId, action: kind });
     }

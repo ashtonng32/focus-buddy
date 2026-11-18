@@ -15,5 +15,6 @@ export async function POST() {
     .update({ handled_at: new Date().toISOString() })
     .is("handled_at", null)
     .in("status", ["done", "stuck"]);
+  await db.from("sessions").update({ resume_pending: false }).eq("resume_pending", true);
   return NextResponse.json({ ok: true });
 }

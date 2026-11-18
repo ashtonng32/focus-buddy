@@ -51,6 +51,8 @@ export type SessionRow = {
   notion_failed: boolean;
   focus_total_ms: number;
   effort: string | null;
+  from_session_id: string | null;
+  resume_pending: boolean;
 };
 
 export function sessionOut(r: SessionRow | null) {

@@ -7,6 +7,7 @@ import {
   CheckInScreen,
   DoneScreen,
   FocusScreen,
+  BackToTaskScreen,
   Light,
   StartScreen,
   StuckScreen,
@@ -45,7 +46,7 @@ type Preview = {
 
 export function FocusBuddy() {
   const app = useAppState();
-  const { session, lastEnded, settings } = app;
+  const { session, lastEnded, resume, settings } = app;
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<boolean | null>(null);
@@ -54,7 +55,7 @@ export function FocusBuddy() {
   // Back swipe: closes the suggested-task screen; never closes the app mid-block.
   useBackStack({
     overlay: Boolean(preview) && !session,
-    hold: Boolean(session || lastEnded),
+    hold: Boolean(session || lastEnded || resume),
     onOverlayBack: () => setPreview(null),
   });
 
@@ -176,7 +177,7 @@ export function FocusBuddy() {
           copied={copied}
           claudeHref={claudeLink(lastEnded.taskTitle)}
           onCopy={async () => setCopied(await copyPrompt(lastEnded.taskTitle))}
-          onBack={() => app.resolve(lastEnded.id, "handled")}
+          onBack={() => app.resolve(lastEnded.id, "back")}
           onStop={() => app.stop()}
         />
       );
@@ -195,6 +196,20 @@ export function FocusBuddy() {
           await app.resolve(lastEnded.id, "talk");
           window.location.href = claudeLink(lastEnded.taskTitle);
         }}
+        onStop={() => app.stop()}
+      />
+    );
+  }
+
+  // Back from a break (or Claude): return to the task you were stuck on, pick a timer
+  if (resume) {
+    return (
+      <BackToTaskScreen
+        title={resume.taskTitle}
+        minutes={{ low: settings.low, steady: settings.steady, flow: settings.flow }}
+        busy={busy}
+        onPick={(mode) => begin({ kind: "focus", mode, taskId: resume.notionTaskId, fromSessionId: resume.id })}
+        onElse={() => app.resolve(resume.id, "handled")}
         onStop={() => app.stop()}
       />
     );

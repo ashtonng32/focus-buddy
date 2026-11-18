@@ -40,10 +40,29 @@ export async function GET() {
     }
   }
 
+  // With nothing running or waiting: a stuck task we can offer to go back to (after a break or Claude).
+  let resume = null;
+  if (!session && !lastEnded) {
+    const since = new Date(Date.now() - 6 * 3_600_000).toISOString();
+    const { data } = await db
+      .from("sessions")
+      .select("*")
+      .eq("resume_pending", true)
+      .gte("started_at", since)
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const r = data as SessionRow | null;
+    if (r?.notion_task_id) {
+      resume = { id: r.id, mode: r.mode, notionTaskId: r.notion_task_id, taskTitle: r.task_title };
+    }
+  }
+
   return NextResponse.json({
     serverNow: Date.now(),
     settings: settingsOut(settings),
     session: sessionOut(session),
     lastEnded,
+    resume,
   });
 }

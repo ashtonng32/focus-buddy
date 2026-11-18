@@ -37,6 +37,9 @@ export type LastEnded = {
   talking: boolean;
 };
 
+/** A stuck task to go back to once the break (or Claude) is over. */
+export type Resume = { id: string; mode: Mode | null; notionTaskId: string; taskTitle: string };
+
 export type SuggestedTask = { id: string | null; title: string; firstStep: string };
 
 // Minutes. PRD defaults, used until the server answers.
@@ -47,6 +50,7 @@ type State = {
   failed: boolean;
   session: Session | null;
   lastEnded: LastEnded | null;
+  resume: Resume | null;
   settings: Settings;
   /** serverNow - Date.now(): add to Date.now() to get server time. */
   offset: number;
@@ -69,6 +73,7 @@ export function useAppState() {
     failed: false,
     session: null,
     lastEnded: null,
+    resume: null,
     settings: DEFAULTS,
     offset: 0,
   });
@@ -83,6 +88,7 @@ export function useAppState() {
         failed: false,
         session: j.session,
         lastEnded: j.lastEnded,
+        resume: j.resume,
         settings: j.settings,
         offset: j.serverNow - Date.now(),
       });
@@ -139,7 +145,7 @@ export function useAppState() {
       act(() => call("/api/session", b)),
     checkin: (action: "keep_going" | "done" | "stuck" | "back") =>
       act(() => call("/api/checkin", { sessionId: state.session?.id, action })),
-    resolve: (sessionId: string, action: "talk" | "handled") => act(() => call("/api/resolve", { sessionId, action })),
+    resolve: (sessionId: string, action: "talk" | "handled" | "back") => act(() => call("/api/resolve", { sessionId, action })),
     anotherIdea: () => act(() => call("/api/break", {})),
     stop: () =>
       act(async () => {
