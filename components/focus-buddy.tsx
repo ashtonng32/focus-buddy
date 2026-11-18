@@ -12,9 +12,29 @@ const MODES: { mode: Mode; label: string; hint: string }[] = [
   { mode: "flow", label: "Flow", hint: "Long and deep" },
 ];
 
-// Opens the Claude Android app (falls back to the website if it isn't installed).
-const CLAUDE_LINK =
-  "intent://claude.ai/new#Intent;scheme=https;package=com.anthropic.claude;S.browser_fallback_url=https%3A%2F%2Fclaude.ai%2Fnew;end";
+// Opens the Claude Android app with a ready-made first message (falls back to the website).
+// The same text is copied to the clipboard in case the app opens with an empty box.
+function stuckPrompt(task: string) {
+  return (
+    `I'm using my Focus Buddy timer and I'm stuck on "${task}". ` +
+    `Help me get unstuck without any guilt. Ask me one short question about what's getting in the way, ` +
+    `then help me find a tiny first step. If it helps, look at my Today list in Notion.`
+  );
+}
+
+function claudeLink(task: string) {
+  const q = encodeURIComponent(stuckPrompt(task));
+  const web = `https://claude.ai/new?q=${q}`;
+  return `intent://claude.ai/new?q=${q}#Intent;scheme=https;package=com.anthropic.claude;S.browser_fallback_url=${encodeURIComponent(web)};end`;
+}
+
+async function copyPrompt(task: string) {
+  try {
+    await navigator.clipboard.writeText(stuckPrompt(task));
+  } catch {
+    /* clipboard blocked: the link still carries the prompt */
+  }
+}
 
 const NO_TASK: SuggestedTask = { id: null, title: "Your next thing", firstStep: "Just open it." };
 
@@ -235,11 +255,17 @@ export function FocusBuddy() {
       return (
         <Screen>
           <Heading>Talk it through</Heading>
-          <p className="text-center text-muted-foreground">Come back whenever you&apos;re ready.</p>
+          <p className="text-center text-muted-foreground">
+            Your first message is copied. If Claude opens empty, just paste it. Come back whenever you&apos;re ready.
+          </p>
           <Button className="h-20 text-xl" onClick={() => app.resolve(lastEnded.id, "handled")}>
             I&apos;m back
           </Button>
-          <a href={CLAUDE_LINK} className="text-center text-sm text-muted-foreground underline">
+          <a
+            href={claudeLink(lastEnded.taskTitle)}
+            onClick={() => copyPrompt(lastEnded.taskTitle)}
+            className="text-center text-sm text-muted-foreground underline"
+          >
             Open Claude again
           </a>
         </Screen>
@@ -272,8 +298,9 @@ export function FocusBuddy() {
           variant="outline"
           className="h-20 text-xl"
           onClick={async () => {
+            copyPrompt(lastEnded.taskTitle); // inside the tap, so the browser allows it
             await app.resolve(lastEnded.id, "talk");
-            window.location.href = CLAUDE_LINK;
+            window.location.href = claudeLink(lastEnded.taskTitle);
           }}
         >
           Talk it through
