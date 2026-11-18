@@ -26,9 +26,9 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ er
         <span className="font-display text-2xl">Focus Buddy</span>
         <div className="flex flex-col gap-4">
           <h1 className="font-display text-[3rem] leading-[1.05]">
-            Find your focus. <em>One gentle step</em> at a time.
+            Let&apos;s get something done.
           </h1>
-          <p className="text-white/80">Your accountability buddy.</p>
+          <p className="text-white/80">Tell me how you&apos;re feeling and I&apos;ll take it from there.</p>
           <Suspense>
             <ErrorNote searchParams={searchParams} />
           </Suspense>

@@ -17,7 +17,7 @@ import { useBackStack } from "@/lib/back-stack";
 import { claudeLink, copyPrompt, stuckPrompt } from "@/lib/claude-link";
 import { useAppState, type Kind, type Mode, type SuggestedTask } from "@/lib/app-state";
 
-const NO_TASK: SuggestedTask = { id: null, title: "Your next thing", firstStep: "Just open it." };
+const NO_TASK: SuggestedTask = { id: null, title: "Up next", firstStep: "Just open it. That's the whole first step." };
 
 // 0 until the first tick after mount (Date.now() can't be read during prerender).
 function useNow(active: boolean) {

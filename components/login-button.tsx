@@ -15,7 +15,7 @@ export function LoginButton() {
         })
       }
     >
-      Sign in with Google
+      Continue with Google
     </Pill>
   );
 }

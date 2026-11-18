@@ -8,7 +8,7 @@ export const MODES: Record<
 > = {
   low: {
     label: "Low",
-    hint: "A gentle start",
+    hint: "Easy",
     Icon: Leaf,
     card: "bg-[#e3f4eb]",
     iconBg: "bg-[#bfe5d3]",
@@ -17,8 +17,8 @@ export const MODES: Record<
     sky: "linear-gradient(180deg,#12303b 0%,#1f5560 55%,#3b8b7f 100%)",
   },
   steady: {
-    label: "Steady",
-    hint: "A normal block",
+    label: "Motivated",
+    hint: "Ready",
     Icon: Waves,
     card: "bg-[#ece6ff]",
     iconBg: "bg-[#d4c8ff]",
@@ -28,7 +28,7 @@ export const MODES: Record<
   },
   flow: {
     label: "Flow",
-    hint: "Long and deep",
+    hint: "Locked-in",
     Icon: Flame,
     card: "bg-[#ffeadf]",
     iconBg: "bg-[#ffcaae]",

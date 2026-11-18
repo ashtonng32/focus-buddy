@@ -45,7 +45,7 @@ export function parseTask(page: any): Task {
     status: p.Status?.status?.name ?? "",
     effort: p.Effort?.select?.name ?? null,
     due: p.Due?.date?.start ?? null,
-    firstStep: firstStep || "Just open it.",
+    firstStep: firstStep || "Just open it. That's the whole first step.",
     parentId: p["Parent Task"]?.relation?.[0]?.id ?? null,
     subtaskIds: (p.Subtasks?.relation ?? []).map((r: any) => r.id),
   };

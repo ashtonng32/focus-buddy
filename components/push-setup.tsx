@@ -66,14 +66,14 @@ export function PushSetup() {
   if (status === "denied") {
     return (
       <p className="px-1 text-center text-sm text-[#6c6290]">
-        Notifications are blocked. Allow them for this app in Chrome&apos;s site settings.
+        Notifications are off, so I can&apos;t check in with you. Turn them on in Chrome&apos;s site settings.
       </p>
     );
   }
   if (status === "unsupported") {
     return (
       <p className="px-1 text-center text-sm text-[#6c6290]">
-        This browser can&apos;t send check-ins. Open the installed app on your phone.
+        Check-ins only work in the app on your phone. Open it there.
       </p>
     );
   }

@@ -19,7 +19,7 @@ const db = createClient(
 function pitStop(s: { kind: string; mode: string | null; started_at: string; ends_at: string; focus_total_ms: number }) {
   if (s.kind !== "focus" || s.mode !== "flow") return "";
   const total = Number(s.focus_total_ms) + (new Date(s.ends_at).getTime() - new Date(s.started_at).getTime());
-  return total >= 90 * 60_000 ? " · 2-minute pit stop?" : "";
+  return total >= 90 * 60_000 ? " Take 2 minutes?" : "";
 }
 
 Deno.serve(async (req) => {
@@ -44,8 +44,8 @@ Deno.serve(async (req) => {
     const payload = JSON.stringify({
       sessionId: s.id,
       kind: s.kind,
-      title: s.kind === "focus" ? "Time's up. How's it going?" : s.kind === "break" ? "Break's over" : "Switch time's up",
-      body: s.task_title + pitStop(s),
+      title: s.kind === "break" ? "Break's over." : "That's time.",
+      body: s.kind === "break" ? s.task_title : "How's it going?" + pitStop(s),
     });
     for (const sub of subs ?? []) {
       try {

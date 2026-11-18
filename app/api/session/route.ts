@@ -22,8 +22,8 @@ export async function POST(req: Request) {
     kind === "break" ? settings.break_min : kind === "switch" ? settings.switch_min : settings[`${body.mode}_min` as const],
   );
 
-  let title = "Your next thing";
-  let firstStep = "Just open it.";
+  let title = "Up next";
+  let firstStep = "Just open it. That's the whole first step.";
   let taskId: string | null = null;
   let effort: string | null = null;
   if (kind === "break") {

@@ -88,7 +88,7 @@ export function StartScreen({
             </Link>
           </div>
           <h1 className="font-display mt-8 text-[2.5rem] leading-[1.08]">
-            How&apos;s your <em>energy</em> today?
+            How are you <em>feeling</em>?
           </h1>
         </div>
         <Landscape tone="dawn" className="absolute inset-x-0 bottom-0 w-full" />
@@ -98,7 +98,7 @@ export function StartScreen({
         className={`relative -mt-8 flex-1 rounded-t-[2rem] bg-[#faf8ff] px-5 pt-7 shadow-[0_-14px_30px_-18px_rgba(60,40,140,0.55)] ${padBottom}`}
       >
         <div className="mx-auto flex max-w-md flex-col gap-3">
-          <p className="px-1 text-sm text-[#6c6290]">Pick one. There&apos;s no wrong answer.</p>
+          <p className="px-1 text-sm text-[#6c6290]">Pick One</p>
           {(Object.keys(MODES) as Mode[]).map((mode, i) => {
             const m = MODES[mode];
             return (
@@ -121,7 +121,7 @@ export function StartScreen({
             );
           })}
           {failed && (
-            <p className="px-1 text-center text-sm text-[#6c6290]">Can&apos;t reach the server. Check your connection.</p>
+            <p className="px-1 text-center text-sm text-[#6c6290]">Can&apos;t connect right now. Check your signal and try again.</p>
           )}
           {push}
         </div>
@@ -166,14 +166,14 @@ export function TaskPreviewScreen({
         </button>
         <span className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${m.card} ${m.iconFg}`}>
           <m.Icon className="size-4" />
-          {kind === "switch" ? "Switching gears" : m.label}
+          {kind === "switch" ? "Okay, something else for a bit." : m.label}
         </span>
       </div>
 
       <div className="rise mt-6 flex flex-1 flex-col justify-center gap-6">
         <div>
           <p className="mb-3 text-sm font-semibold uppercase tracking-[0.16em] text-[#8a7fb5]">
-            {kind === "switch" ? "A little something else" : "Up next"}
+            {kind === "switch" ? "Your other task will be waiting." : "Up next"}
           </p>
           <Title className="text-[2.5rem]">{task.title}</Title>
         </div>
@@ -231,7 +231,7 @@ export function FocusScreen({
       <div className="flex flex-col items-center gap-3 pt-2 text-center">
         <span className="flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold ring-1 ring-white/25">
           <m.Icon className="size-4" />
-          {kind === "switch" ? "Switching gears" : m.label}
+          {kind === "switch" ? "Okay, something else for a bit." : m.label}
         </span>
         <Title className="text-[2rem]">{title}</Title>
         <p className="text-white/75">{firstStep}</p>
@@ -254,7 +254,7 @@ export function FocusScreen({
           I&apos;m stuck
         </Pill>
         <TextButton tone="dark" onClick={onStop}>
-          Stop
+          Stop for now
         </TextButton>
       </div>
     </Immersive>
@@ -280,13 +280,13 @@ export function CheckInScreen({
     <Immersive sky="linear-gradient(180deg,#3a1d6e 0%,#a3466f 52%,#ff9b6a 100%)" tone="flow">
       <div className="rise flex flex-1 flex-col justify-center gap-5">
         <div>
-          <Title className="text-[3rem]">Time&apos;s up.</Title>
+          <Title className="text-[3rem]">That&apos;s time.</Title>
           <p className="font-display mt-1 text-[1.8rem] italic text-white/85">How&apos;s it going?</p>
         </div>
         {pitStop && (
           <div className="flex items-start gap-3 rounded-3xl bg-white/15 p-4 ring-1 ring-white/30 backdrop-blur">
             <Coffee className="mt-0.5 size-6 shrink-0" />
-            <p>You&apos;ve been in flow a while. Want a 2-minute pit stop? Water, stretch, then keep going.</p>
+            <p>You&apos;ve been at it a while. Take 2 minutes? Grab some water, stretch, then jump back in.</p>
           </div>
         )}
       </div>
@@ -301,7 +301,7 @@ export function CheckInScreen({
           I&apos;m stuck
         </Pill>
         <TextButton tone="dark" onClick={onStop}>
-          Stop
+          Stop for now
         </TextButton>
       </div>
     </Immersive>
@@ -336,7 +336,7 @@ export function BreakScreen({
           <div className="breathe absolute inset-14 rounded-full bg-white/15" style={{ animationDelay: "1s" }} />
           <div className="relative flex max-w-[11rem] flex-col items-center text-center">
             <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/75">
-              {over ? "Break's over" : "Take a break"}
+              {over ? "Break's over." : "Take a break"}
             </span>
             {over ? (
               <p className="font-display mt-2 text-3xl">Ready when you are.</p>
@@ -360,7 +360,7 @@ export function BreakScreen({
           I&apos;m back
         </Pill>
         <TextButton tone="dark" onClick={onStop}>
-          Stop
+          Stop for now
         </TextButton>
       </div>
     </Immersive>
@@ -397,22 +397,22 @@ export function DoneScreen({
             <Check className="size-14" strokeWidth={3} />
           </div>
         </div>
-        <Title className="mt-8 text-[2.4rem]">One done is a good day.</Title>
+        <Title className="mt-8 text-[2.4rem]">Nice, that one&apos;s done. One done is a good day.</Title>
         <p className="text-[#6c6290]">&ldquo;{title}&rdquo;</p>
         {notionFailed && (
           <p className="rounded-2xl bg-[#fff0d6] px-4 py-3 text-sm text-[#7a4a00]">
-            I couldn&apos;t update Notion. Mark it done there.
+            Notion didn&apos;t save that. Mark it done there when you get a sec.
           </p>
         )}
       </div>
       <div className="flex flex-col gap-3">
         <Pill onClick={onNext} className="min-h-20 text-xl">
-          Next task
+          What&apos;s next?
         </Pill>
         <Pill variant="soft" disabled={busy} onClick={onBreak}>
           <Coffee className="size-5" /> Take a break
         </Pill>
-        <TextButton onClick={onStop}>Stop</TextButton>
+        <TextButton onClick={onStop}>Stop for now</TextButton>
       </div>
     </Light>
   );
@@ -475,7 +475,7 @@ export function StuckScreen({
       <div className="rise flex flex-1 flex-col justify-center gap-6">
         <div>
           <Title className="text-[2.5rem]">What do you need?</Title>
-          <p className="mt-2 text-lg text-[#6c6290]">Being stuck is okay.</p>
+          <p className="mt-2 text-lg text-[#6c6290]">Let&apos;s get you moving again.</p>
         </div>
         <div className="flex flex-col gap-3">
           <Option
@@ -484,7 +484,7 @@ export function StuckScreen({
             iconBg="bg-[#bfe5d3]"
             iconFg="text-[#1f6b55]"
             title="A break"
-            sub="A little reset, timed."
+            sub="Step away for a few minutes."
             disabled={busy}
             onClick={onBreak}
           />
@@ -493,8 +493,8 @@ export function StuckScreen({
             card="bg-[#ece6ff]"
             iconBg="bg-[#d4c8ff]"
             iconFg="text-[#4a2fb8]"
-            title="Different task for a bit"
-            sub="Switch gears for a short while."
+            title="Something else for a bit"
+            sub="This one will be here when you come back."
             disabled={busy}
             onClick={onSwitch}
           />
@@ -504,12 +504,12 @@ export function StuckScreen({
             iconBg="bg-[#ffcaae]"
             iconFg="text-[#b4441b]"
             title="Talk it through"
-            sub="Chat with Claude about it."
+            sub="Talk it out with Claude."
             onClick={onTalk}
           />
         </div>
       </div>
-      <TextButton onClick={onStop}>Stop</TextButton>
+      <TextButton onClick={onStop}>Stop for now</TextButton>
     </Light>
   );
 }
@@ -536,7 +536,7 @@ export function TalkScreen({
       <div className="rise flex flex-1 flex-col justify-center gap-5">
         <Title className="text-[2.4rem]">Talk it through</Title>
         <div className="rounded-3xl rounded-tl-md bg-white p-5 shadow-[0_12px_30px_-20px_rgba(60,40,140,0.6)]">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#8a7fb5]">Your first message</p>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#8a7fb5]">Here&apos;s what I&apos;ll send Claude</p>
           <p className="text-[#3a2f66]">{message}</p>
         </div>
       </div>
@@ -545,12 +545,12 @@ export function TalkScreen({
           Open Claude
         </PillLink>
         <Pill variant="soft" onClick={onCopy}>
-          {copied === true ? "Copied. Paste it into Claude" : copied === false ? "Couldn't copy. Press and hold the text" : "Copy message"}
+          {copied === true ? "Copied. Paste it into Claude." : copied === false ? "Couldn't copy it. Press and hold the text instead." : "Copy message"}
         </Pill>
         <Pill variant="outline" onClick={onBack}>
           I&apos;m back
         </Pill>
-        <TextButton onClick={onStop}>Stop</TextButton>
+        <TextButton onClick={onStop}>Stop for now</TextButton>
       </div>
     </Light>
   );

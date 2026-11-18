@@ -2,26 +2,26 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { Light } from "@/components/screens";
 import { Pill } from "@/components/pill";
 import { DEFAULTS, useAppState, type Settings } from "@/lib/app-state";
 
 const GROUPS: { title: string; fields: { key: keyof Settings; label: string }[] }[] = [
   {
-    title: "Focus blocks",
+    title: "Work timers",
     fields: [
       { key: "low", label: "Low" },
-      { key: "steady", label: "Steady" },
+      { key: "steady", label: "Motivated" },
       { key: "flow", label: "Flow" },
     ],
   },
   {
-    title: "In between",
+    title: "Breaks and switches",
     fields: [
-      { key: "keepGoing", label: "Keep going" },
+      { key: "keepGoing", label: "Keep going adds" },
       { key: "break", label: "Break" },
-      { key: "switch", label: "Switch" },
+      { key: "switch", label: "Something else" },
     ],
   },
 ];
@@ -37,6 +37,7 @@ function Form({ initial, onSave }: { initial: Settings; onSave: (s: Settings) =>
     () => Object.fromEntries(Object.entries(initial).map(([k, v]) => [k, String(v)])) as Record<keyof Settings, string>,
   );
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
 
   async function save() {
@@ -46,12 +47,15 @@ function Form({ initial, onSave }: { initial: Settings; onSave: (s: Settings) =>
         const n = Number(values[key]);
         next[key] = Number.isFinite(n) && n > 0 ? n : DEFAULTS[key];
       }
+    setSaving(true);
     try {
       await onSave(next);
       setError(false);
       setSaved(true);
     } catch {
       setError(true);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -67,7 +71,7 @@ function Form({ initial, onSave }: { initial: Settings; onSave: (s: Settings) =>
         </Link>
         <h1 className="font-display text-[2.2rem] leading-none">Settings</h1>
       </div>
-      <p className="text-[#6c6290]">Minutes for each block. Use 1 while testing.</p>
+      <p className="text-[#6c6290]">How long each timer runs, in minutes.</p>
 
       {GROUPS.map((g) => (
         <section key={g.title} className="rounded-[1.75rem] bg-white p-5 shadow-[0_12px_30px_-22px_rgba(60,40,140,0.6)]">
@@ -98,9 +102,15 @@ function Form({ initial, onSave }: { initial: Settings; onSave: (s: Settings) =>
         </section>
       ))}
 
-      {error && <p className="text-center text-sm text-[#6c6290]">Couldn&apos;t save. Try again.</p>}
-      <Pill onClick={save} className="mt-auto">
-        {saved ? "Saved" : "Save"}
+      {error && <p className="text-center text-sm text-[#6c6290]">That didn&apos;t save. Try again?</p>}
+      <Pill onClick={save} disabled={saving} variant={saved ? "success" : "solid"} className="mt-auto" aria-live="polite">
+        {saved ? (
+          <>
+            <Check className="pop size-6" strokeWidth={3} /> Saved
+          </>
+        ) : (
+          "Save"
+        )}
       </Pill>
     </Light>
   );

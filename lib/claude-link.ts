@@ -2,9 +2,9 @@
 // The same text can be copied to the clipboard in case the app opens with an empty box.
 export function stuckPrompt(task: string) {
   return (
-    `I'm using my Focus Buddy timer and I'm stuck on "${task}". ` +
-    `Help me get unstuck without any guilt. Ask me one short question about what's getting in the way, ` +
-    `then help me find a tiny first step. If it helps, look at my Today list in Notion.`
+    `I'm stuck on "${task}" and could use a hand. ` +
+    `Ask me one quick question about what's in the way, then help me find a tiny first step. ` +
+    `My Today list in Notion might help.`
   );
 }
 
