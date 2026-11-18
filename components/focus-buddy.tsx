@@ -31,8 +31,9 @@ function claudeLink(task: string) {
 async function copyPrompt(task: string) {
   try {
     await navigator.clipboard.writeText(stuckPrompt(task));
+    return true;
   } catch {
-    /* clipboard blocked: the link still carries the prompt */
+    return false; // clipboard blocked: the link still carries the prompt
   }
 }
 
@@ -93,6 +94,7 @@ export function FocusBuddy() {
   const { session, lastEnded, settings } = app;
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState<boolean | null>(null);
   const now = useNow(Boolean(session));
 
   if (!app.ready || (session && now === 0)) return <main className="flex-1" />;
@@ -255,19 +257,23 @@ export function FocusBuddy() {
       return (
         <Screen>
           <Heading>Talk it through</Heading>
-          <p className="text-center text-muted-foreground">
-            Your first message is copied. If Claude opens empty, just paste it. Come back whenever you&apos;re ready.
-          </p>
-          <Button className="h-20 text-xl" onClick={() => app.resolve(lastEnded.id, "handled")}>
-            I&apos;m back
+          <p className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">{stuckPrompt(lastEnded.taskTitle)}</p>
+          <Button
+            variant="secondary"
+            className="h-16 text-lg"
+            onClick={async () => setCopied(await copyPrompt(lastEnded.taskTitle))}
+          >
+            {copied === true ? "Copied. Paste it into Claude" : copied === false ? "Couldn't copy. Press and hold the text above" : "Copy message"}
           </Button>
           <a
             href={claudeLink(lastEnded.taskTitle)}
-            onClick={() => copyPrompt(lastEnded.taskTitle)}
-            className="text-center text-sm text-muted-foreground underline"
+            className="flex h-16 items-center justify-center rounded-lg border text-lg"
           >
-            Open Claude again
+            Open Claude
           </a>
+          <Button className="h-20 text-xl" onClick={() => app.resolve(lastEnded.id, "handled")}>
+            I&apos;m back
+          </Button>
         </Screen>
       );
     }
