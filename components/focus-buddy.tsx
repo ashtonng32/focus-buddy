@@ -13,6 +13,7 @@ import {
   TalkScreen,
   TaskPreviewScreen,
 } from "@/components/screens";
+import { useBackStack } from "@/lib/back-stack";
 import { claudeLink, copyPrompt, stuckPrompt } from "@/lib/claude-link";
 import { useAppState, type Kind, type Mode, type SuggestedTask } from "@/lib/app-state";
 
@@ -49,6 +50,13 @@ export function FocusBuddy() {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<boolean | null>(null);
   const now = useNow(Boolean(session));
+
+  // Back swipe: closes the suggested-task screen; never closes the app mid-block.
+  useBackStack({
+    overlay: Boolean(preview) && !session,
+    hold: Boolean(session || lastEnded),
+    onOverlayBack: () => setPreview(null),
+  });
 
   if (!app.ready || (session && now === 0)) return <Light />;
 

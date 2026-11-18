@@ -14,6 +14,7 @@ import {
 import { claudeLink, stuckPrompt } from "@/lib/claude-link";
 
 const noop = () => {};
+
 const task = { id: "1", title: "Getting Shipping Wrapped Up", firstStep: "Print the labels." };
 
 export function PreviewClient() {
