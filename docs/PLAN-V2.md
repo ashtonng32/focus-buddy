@@ -8,7 +8,7 @@ Source: [PRD-V2.md](PRD-V2.md). Same rules as the MVP: one slice at a time, test
 | --- | --- | --- |
 | 0. Duet setup | Daily Log database in Notion, Duet section on AI Instructions | **Done** (Nov 18). Still Ashton's: schedule the 8:30 pm Duet check-in (Sun–Fri) in the Duet research preview |
 | 5. Daily Log | Migration, nightly job, Effort on sessions | **Live** (Nov 18) |
-| 6. Avoidance help | Count switches and skips per task, write Avoided tasks | **Code written**, not yet applied or deployed |
+| 6. Avoidance help | Count switches and skips per task, write Avoided tasks | **Live** (Nov 18), skip recording confirmed in production |
 | 7. Weekly page | Duet writes "Your week" each Sunday | No code; after 5 workdays of data |
 
 ## Notion IDs
@@ -54,6 +54,6 @@ Duet writes "Your week" each Sunday from the Daily Log: one win, one pattern, on
 
 ## Order of work
 
-1. Step 5 code, apply migration, deploy, test one real day.
-2. Step 6 once Step 5 has produced a few real rows.
+1. ~~Step 5~~ done.
+2. ~~Step 6~~ done. Remaining: real use, then Step 7 (no code).
 3. Step 7 after 5 workdays.
