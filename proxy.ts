@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAllowed, supabaseConfigured, supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
-const PUBLIC = ["/login", "/auth", "/manifest.webmanifest", "/sw.js", "/icons", "/api/cron"];
+const PUBLIC = ["/login", "/auth", "/manifest.webmanifest", "/sw.js", "/icons", "/icon.png", "/apple-icon.png", "/api/cron"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
