@@ -10,7 +10,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const isApi = pathname.startsWith("/api/");
   const toLogin = (reason?: string) => {
+    // API callers (including the service worker) need a 401, not a redirect to an HTML page.
+    if (isApi) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = reason ? `?error=${reason}` : "";

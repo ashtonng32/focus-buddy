@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DEFAULTS, getSettings, saveSettings, type Settings } from "@/lib/settings";
+import { DEFAULTS, useAppState, type Settings } from "@/lib/app-state";
 
 const FIELDS: { key: keyof Settings; label: string }[] = [
   { key: "low", label: "Low" },
@@ -17,23 +17,31 @@ const FIELDS: { key: keyof Settings; label: string }[] = [
 ];
 
 export function SettingsForm() {
-  const [values, setValues] = useState<Record<keyof Settings, string>>(() => {
-    const s = getSettings();
-    return Object.fromEntries(Object.entries(s).map(([k, v]) => [k, String(v)])) as Record<
-      keyof Settings,
-      string
-    >;
-  });
-  const [saved, setSaved] = useState(false);
+  const app = useAppState();
+  if (!app.ready) return <main className="flex-1" />;
+  return <Form initial={app.settings} onSave={app.saveSettings} />;
+}
 
-  function save() {
+function Form({ initial, onSave }: { initial: Settings; onSave: (s: Settings) => Promise<void> }) {
+  const [values, setValues] = useState<Record<keyof Settings, string>>(
+    () => Object.fromEntries(Object.entries(initial).map(([k, v]) => [k, String(v)])) as Record<keyof Settings, string>,
+  );
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function save() {
     const next = { ...DEFAULTS };
     for (const { key } of FIELDS) {
       const n = Number(values[key]);
       next[key] = Number.isFinite(n) && n > 0 ? n : DEFAULTS[key];
     }
-    saveSettings(next);
-    setSaved(true);
+    try {
+      await onSave(next);
+      setError(false);
+      setSaved(true);
+    } catch {
+      setError(true);
+    }
   }
 
   return (
@@ -60,6 +68,7 @@ export function SettingsForm() {
           />
         </div>
       ))}
+      {error && <p className="text-center text-sm text-muted-foreground">Couldn&apos;t save. Try again.</p>}
       <Button className="h-14 text-lg" onClick={save}>
         {saved ? "Saved" : "Save"}
       </Button>

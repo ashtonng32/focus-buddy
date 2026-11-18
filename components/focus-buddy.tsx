@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useSettings } from "@/lib/settings";
-import { restartSession, setSession, startSession, useSession, type Mode } from "@/lib/session";
+import { PushSetup } from "@/components/push-setup";
+import { useAppState, type Mode } from "@/lib/app-state";
 
 const MODES: { mode: Mode; label: string; hint: string }[] = [
   { mode: "low", label: "Low", hint: "A gentle start" },
@@ -39,26 +39,14 @@ function useNow(active: boolean) {
 }
 
 export function FocusBuddy() {
-  const settings = useSettings();
-  const session = useSession();
+  const app = useAppState();
+  const { session, settings } = app;
   const [message, setMessage] = useState<string | null>(null);
   const now = useNow(Boolean(session));
 
-  if (session === undefined || (session && now === 0)) return <main className="flex-1" />;
+  if (!app.ready || (session && now === 0)) return <main className="flex-1" />;
 
-  function start(mode: Mode) {
-    setMessage(null);
-    startSession(mode, settings[mode]);
-  }
-
-  function keepGoing() {
-    if (session) restartSession(session, settings.keepGoing);
-  }
-
-  function stop() {
-    setSession(null);
-    setMessage(null);
-  }
+  const kind = (text: string | null) => setMessage(text);
 
   // Start
   if (!session) {
@@ -66,9 +54,21 @@ export function FocusBuddy() {
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 p-6">
         <h1 className="text-center text-3xl font-semibold">How are you feeling?</h1>
         {message && <p className="text-center text-muted-foreground">{message}</p>}
+        {app.failed && (
+          <p className="text-center text-sm text-muted-foreground">
+            Can&apos;t reach the server. Check your connection.
+          </p>
+        )}
         <div className="flex flex-col gap-3">
           {MODES.map(({ mode, label, hint }) => (
-            <Button key={mode} className="h-24 flex-col text-2xl" onClick={() => start(mode)}>
+            <Button
+              key={mode}
+              className="h-24 flex-col text-2xl"
+              onClick={() => {
+                kind(null);
+                app.start(mode);
+              }}
+            >
               {label}
               <span className="text-sm font-normal opacity-80">
                 {hint} · {settings[mode]} min
@@ -76,6 +76,7 @@ export function FocusBuddy() {
             </Button>
           ))}
         </div>
+        <PushSetup />
         <Link href="/settings" className="mt-2 text-center text-sm text-muted-foreground underline">
           Settings
         </Link>
@@ -83,34 +84,33 @@ export function FocusBuddy() {
     );
   }
 
-  const remaining = session.endsAt - now;
+  const remaining = session.endsAt - (now + app.offset);
 
-  // Check-in (in-app; notification buttons arrive in slice 2)
+  async function done() {
+    kind("One done is a good day.");
+    await app.checkin("done");
+  }
+  async function stuck() {
+    kind("Being stuck is okay. Stuck options are coming soon.");
+    await app.checkin("stuck");
+  }
+  async function stop() {
+    kind(null);
+    await app.stop();
+  }
+
+  // Check-in (the notification's buttons answer the same question)
   if (remaining <= 0) {
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-4 p-6">
         <h1 className="text-center text-3xl font-semibold">Time&apos;s up. How&apos;s it going?</h1>
-        <Button className="h-20 text-xl" onClick={keepGoing}>
+        <Button className="h-20 text-xl" onClick={() => app.checkin("keep_going")}>
           Keep going
         </Button>
-        <Button
-          variant="secondary"
-          className="h-20 text-xl"
-          onClick={() => {
-            stop();
-            setMessage("One done is a good day.");
-          }}
-        >
+        <Button variant="secondary" className="h-20 text-xl" onClick={done}>
           Done
         </Button>
-        <Button
-          variant="outline"
-          className="h-20 text-xl"
-          onClick={() => {
-            stop();
-            setMessage("Being stuck is okay. Stuck options are coming soon.");
-          }}
-        >
+        <Button variant="outline" className="h-20 text-xl" onClick={stuck}>
           I&apos;m stuck
         </Button>
         <StopLink onStop={stop} />
@@ -129,23 +129,10 @@ export function FocusBuddy() {
         {fmt(remaining)}
       </p>
       <div className="flex flex-col gap-3">
-        <Button
-          className="h-20 text-xl"
-          onClick={() => {
-            stop();
-            setMessage("One done is a good day.");
-          }}
-        >
+        <Button className="h-20 text-xl" onClick={done}>
           Done
         </Button>
-        <Button
-          variant="outline"
-          className="h-20 text-xl"
-          onClick={() => {
-            stop();
-            setMessage("Being stuck is okay. Stuck options are coming soon.");
-          }}
-        >
+        <Button variant="outline" className="h-20 text-xl" onClick={stuck}>
           I&apos;m stuck
         </Button>
       </div>
