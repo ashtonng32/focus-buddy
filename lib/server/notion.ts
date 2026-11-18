@@ -35,9 +35,10 @@ async function notion<T>(path: string, init?: RequestInit): Promise<T> {
 export function parseTask(page: any): Task {
   const p = page.properties;
   const plain = (rt: any[] | undefined) => (rt ?? []).map((x) => x.plain_text).join("");
-  // First step: the task's "First Step" field if filled, else the first line of Notes, else a nudge.
+  // First step: the task's "First Step" (or "First Steps") field if filled, else the first line of Notes, else a nudge.
   const firstLine = (rt: any[] | undefined) => plain(rt).split("\n")[0].trim();
-  const firstStep = firstLine(p["First Step"]?.rich_text) || firstLine(p.Notes?.rich_text);
+  const firstStep =
+    firstLine(p["First Step"]?.rich_text) || firstLine(p["First Steps"]?.rich_text) || firstLine(p.Notes?.rich_text);
   return {
     id: page.id,
     title: plain(p.Task?.title).trim() || "Untitled",
