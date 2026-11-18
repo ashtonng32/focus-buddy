@@ -15,6 +15,13 @@ const db = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
+// After 90 minutes of total flow, the check-in adds a pit stop line.
+function pitStop(s: { kind: string; mode: string | null; started_at: string; ends_at: string; focus_total_ms: number }) {
+  if (s.kind !== "focus" || s.mode !== "flow") return "";
+  const total = Number(s.focus_total_ms) + (new Date(s.ends_at).getTime() - new Date(s.started_at).getTime());
+  return total >= 90 * 60_000 ? " · 2-minute pit stop?" : "";
+}
+
 Deno.serve(async (req) => {
   if (req.headers.get("x-cron-secret") !== CRON_SECRET) {
     return new Response("unauthorized", { status: 401 });
@@ -27,7 +34,7 @@ Deno.serve(async (req) => {
     .eq("status", "running")
     .is("notified_at", null)
     .lte("ends_at", new Date().toISOString())
-    .select("id, kind, task_title");
+    .select("id, kind, mode, task_title, started_at, ends_at, focus_total_ms");
   if (error) return new Response(error.message, { status: 500 });
   if (!due?.length) return Response.json({ notified: 0 });
 
@@ -38,7 +45,7 @@ Deno.serve(async (req) => {
       sessionId: s.id,
       kind: s.kind,
       title: s.kind === "focus" ? "Time's up. How's it going?" : s.kind === "break" ? "Break's over" : "Switch time's up",
-      body: s.task_title,
+      body: s.task_title + pitStop(s),
     });
     for (const sub of subs ?? []) {
       try {

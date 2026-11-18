@@ -147,9 +147,17 @@ export function FocusBuddy() {
 
     // Check-in (the notification's buttons answer the same question)
     if (remaining <= 0) {
+      // After 90 minutes of total flow, the check-in adds a pit stop line.
+      const flowMs = session.focusTotalMs + (session.endsAt - session.startedAt);
+      const pitStop = session.kind === "focus" && session.mode === "flow" && flowMs >= 90 * 60_000;
       return (
         <Screen>
           <Heading>Time&apos;s up. How&apos;s it going?</Heading>
+          {pitStop && (
+            <p className="text-center text-muted-foreground">
+              You&apos;ve been in flow a while. Want a 2-minute pit stop? Water, stretch, then keep going.
+            </p>
+          )}
           <Button className="h-20 text-xl" onClick={() => app.checkin("keep_going")}>
             Keep going
           </Button>
@@ -248,6 +256,9 @@ export function FocusBuddy() {
           >
             Take a break
           </Button>
+          <div className="text-center">
+            <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
+          </div>
         </Screen>
       );
     }
@@ -274,6 +285,9 @@ export function FocusBuddy() {
           <Button className="h-20 text-xl" onClick={() => app.resolve(lastEnded.id, "handled")}>
             I&apos;m back
           </Button>
+          <div className="text-center">
+            <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
+          </div>
         </Screen>
       );
     }
@@ -311,6 +325,9 @@ export function FocusBuddy() {
         >
           Talk it through
         </Button>
+        <div className="text-center">
+          <LinkButton onClick={() => app.stop()}>Stop</LinkButton>
+        </div>
       </Screen>
     );
   }

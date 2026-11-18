@@ -49,6 +49,7 @@ export type SessionRow = {
   status: string;
   handled_at: string | null;
   notion_failed: boolean;
+  focus_total_ms: number;
 };
 
 export function sessionOut(r: SessionRow | null) {
@@ -62,6 +63,7 @@ export function sessionOut(r: SessionRow | null) {
     firstStep: r.first_step,
     startedAt: new Date(r.started_at).getTime(),
     endsAt: new Date(r.ends_at).getTime(),
+    focusTotalMs: Number(r.focus_total_ms),
   };
 }
 

@@ -31,6 +31,9 @@ export async function POST(req: Request) {
         started_at: new Date(now).toISOString(),
         ends_at: new Date(now + Number(settings.keepgoing_min) * 60_000).toISOString(),
         notified_at: null,
+        // Total focus so far: what this block just ran, added to earlier Keep going blocks.
+        focus_total_ms:
+          Number(session.focus_total_ms) + (new Date(session.ends_at).getTime() - new Date(session.started_at).getTime()),
       })
       .eq("id", session.id);
   } else if (action === "back") {

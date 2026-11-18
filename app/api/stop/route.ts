@@ -9,5 +9,11 @@ export async function POST() {
   if (data?.length) {
     await db.from("events").insert(data.map((s) => ({ session_id: s.id, action: "stop" })));
   }
+  // Stop also ends a pending follow-up (Done -> Next/Break, Stuck -> What do you need?).
+  await db
+    .from("sessions")
+    .update({ handled_at: new Date().toISOString() })
+    .is("handled_at", null)
+    .in("status", ["done", "stuck"]);
   return NextResponse.json({ ok: true });
 }

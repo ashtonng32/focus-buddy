@@ -144,3 +144,20 @@ export async function fetchBreakLists(): Promise<Record<string, string[]>> {
   await walk(process.env.NOTION_BREAKS_PAGE!);
   return lists;
 }
+
+/** Creates one Work Log entry (Logged By = Focus Buddy). Returns the new page id. */
+export async function createWorkLog(entry: { title: string; date: string; whatGotDone: string }): Promise<string> {
+  const res = await notion<any>("/pages", {
+    method: "POST",
+    body: JSON.stringify({
+      parent: { type: "data_source_id", data_source_id: process.env.NOTION_WORKLOG_DS },
+      properties: {
+        Entry: { title: [{ text: { content: entry.title } }] },
+        Date: { date: { start: entry.date } },
+        "Logged By": { select: { name: "Focus Buddy" } },
+        "What Got Done": { rich_text: [{ text: { content: entry.whatGotDone.slice(0, 1900) } }] },
+      },
+    }),
+  });
+  return res.id as string;
+}

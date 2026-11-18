@@ -23,6 +23,7 @@ export type Session = {
   firstStep: string;
   startedAt: number;
   endsAt: number;
+  focusTotalMs: number;
 };
 
 /** A finished block still waiting on its follow-up (Done -> Next/Break, Stuck -> What do you need?). */
@@ -136,7 +137,15 @@ export function useAppState() {
       act(() => call("/api/checkin", { sessionId: state.session?.id, action })),
     resolve: (sessionId: string, action: "talk" | "handled") => act(() => call("/api/resolve", { sessionId, action })),
     anotherIdea: () => act(() => call("/api/break", {})),
-    stop: () => act(() => call("/api/stop")),
+    stop: () =>
+      act(async () => {
+        await call("/api/stop");
+        // Clear any check-in notification still sitting in the shade.
+        try {
+          const reg = await navigator.serviceWorker?.ready;
+          (await reg?.getNotifications())?.forEach((n) => n.close());
+        } catch {}
+      }),
     saveSettings: (s: Settings) => act(() => call("/api/settings", s, "PUT")),
   };
 }
