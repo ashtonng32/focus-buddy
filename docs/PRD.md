@@ -101,7 +101,7 @@ Notion stays the source of truth for tasks and breaks; Focus Buddy only reads To
 - Items with Xbox, Switch, or show in the name carry a "set a timer" line.
 - Re-read the page at the start of each session, so new ideas show up without code changes.
 
-**Notion setup:** "Focus Buddy" is already an option in Work Log → Logged By. Optional later: a "First Step" text field on tasks, shown on the Focus screen when filled.
+**Notion setup:** "Focus Buddy" is already an option in Work Log → Logged By. A "First Step" text field on tasks (added Nov 18) is shown on the Focus screen when filled; otherwise the first line of Notes, otherwise "Just open it."
 
 ## Tech approach
 
