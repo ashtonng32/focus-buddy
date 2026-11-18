@@ -3,13 +3,13 @@
 const API = "https://api.notion.com/v1";
 const VERSION = "2025-09-03"; // the API version that supports data sources
 
-export type Priority = "High" | "Medium" | "Low";
+export type Effort = "Quick" | "Medium" | "Big";
 
 export type Task = {
   id: string;
   title: string;
   status: string;
-  priority: Priority | null;
+  effort: Effort | null;
   due: string | null; // YYYY-MM-DD (or ISO datetime)
   firstStep: string;
   parentId: string | null;
@@ -40,7 +40,7 @@ export function parseTask(page: any): Task {
     id: page.id,
     title: plain(p.Task?.title).trim() || "Untitled",
     status: p.Status?.status?.name ?? "",
-    priority: p.Priority?.select?.name ?? null,
+    effort: p.Effort?.select?.name ?? null,
     due: p.Due?.date?.start ?? null,
     firstStep: notes || "Just open it.",
     parentId: p["Parent Task"]?.relation?.[0]?.id ?? null,

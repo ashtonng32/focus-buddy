@@ -87,11 +87,12 @@ Notion stays the source of truth for tasks and breaks; Focus Buddy only reads To
 | Write | Status = Done (and on every subtask when a parent is marked Done) | The task page |
 | Write | One entry per day: tasks done, minutes focused, breaks taken | Work Log, Logged By = Focus Buddy |
 
-**Task suggestion (no AI in the MVP)**
+**Task suggestion (no AI in the MVP)** — updated Nov 18: uses the Effort field (Quick, Medium, Big), not Priority.
 
-- Low: a task already in Doing first (momentum), else a subtask, else the lowest-priority Today task.
-- Steady and Flow: overdue or due today first, then High priority, then the rest.
-- Skip any task parked in this session. "Different task" shows the next one in the same order.
+- Low: all the Quick tasks (Medium, then Big, only if no Quick ones are left).
+- Steady: Quick and Medium tasks in no set order; Big only if nothing else is left.
+- Flow: the only mode with a set start: Big first, then Medium, then Quick.
+- A task with no Effort counts as Medium. Skip any task parked in this session. "Different task" shows the next one in the same order.
 
 **Break suggestion**
 
