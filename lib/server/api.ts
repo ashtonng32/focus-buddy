@@ -4,6 +4,8 @@ import { isAllowed } from "@/lib/supabase/env";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type Mode = "low" | "steady" | "flow";
+export type Kind = "focus" | "break" | "switch";
+export type Db = ReturnType<typeof createAdminClient>;
 
 export const unauthorized = () => NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -35,20 +37,27 @@ export function settingsOut(r: SettingsRow) {
   };
 }
 
-type SessionRow = {
+export type SessionRow = {
   id: string;
+  kind: Kind;
   mode: Mode | null;
+  notion_task_id: string | null;
   task_title: string;
   first_step: string;
   started_at: string;
   ends_at: string;
+  status: string;
+  handled_at: string | null;
+  notion_failed: boolean;
 };
 
 export function sessionOut(r: SessionRow | null) {
   if (!r) return null;
   return {
     id: r.id,
+    kind: r.kind,
     mode: r.mode,
+    notionTaskId: r.notion_task_id,
     taskTitle: r.task_title,
     firstStep: r.first_step,
     startedAt: new Date(r.started_at).getTime(),
@@ -56,12 +65,12 @@ export function sessionOut(r: SessionRow | null) {
   };
 }
 
-export async function loadSettings(db: ReturnType<typeof createAdminClient>) {
+export async function loadSettings(db: Db) {
   const { data } = await db.from("settings").select("*").eq("id", 1).single();
   return data as SettingsRow;
 }
 
-export async function loadActive(db: ReturnType<typeof createAdminClient>) {
+export async function loadActive(db: Db) {
   const { data } = await db.from("sessions").select("*").eq("status", "running").maybeSingle();
   return data as SessionRow | null;
 }

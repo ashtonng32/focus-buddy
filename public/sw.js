@@ -14,7 +14,7 @@ self.addEventListener("push", (event) => {
   // Android Chrome shows at most 2 buttons (Notification.maxActions). Keep going and Done win;
   // "I'm stuck" is one tap away on the check-in screen the notification opens.
   const max = typeof Notification.maxActions === "number" ? Notification.maxActions : 2;
-  const actions = data.kind === "focus" ? ACTIONS.slice(0, max) : [];
+  const actions = data.kind === "focus" || data.kind === "switch" ? ACTIONS.slice(0, max) : [];
   event.waitUntil(
     self.registration.showNotification(data.title || "Check-in", {
       body: data.body || "",

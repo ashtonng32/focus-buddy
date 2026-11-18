@@ -1,34 +1,66 @@
 import { NextResponse } from "next/server";
-import { authedDb, loadSettings, sessionOut, unauthorized, type Mode } from "@/lib/server/api";
+import { authedDb, loadSettings, sessionOut, unauthorized, type Kind, type Mode } from "@/lib/server/api";
+import { getTask } from "@/lib/server/notion";
+import { pickBreak } from "@/lib/server/breaks";
 
 const MODES: Mode[] = ["low", "steady", "flow"];
+const KINDS: Kind[] = ["focus", "switch", "break"];
 
-// Start a focus block. (Break and switch blocks arrive in slices 3 and 4.)
+// Start a focus, switch or break block. `fromSessionId` is the finished block this one follows
+// (Stuck -> break / different task, Done -> break); it is marked handled.
 export async function POST(req: Request) {
   const db = await authedDb();
   if (!db) return unauthorized();
-  const { mode } = (await req.json()) as { mode: Mode };
-  if (!MODES.includes(mode)) return NextResponse.json({ error: "bad mode" }, { status: 400 });
+  const body = (await req.json()) as { kind?: Kind; mode: Mode; taskId?: string | null; fromSessionId?: string };
+  const kind: Kind = body.kind ?? "focus";
+  if (!MODES.includes(body.mode) || !KINDS.includes(kind)) {
+    return NextResponse.json({ error: "bad request" }, { status: 400 });
+  }
 
   const settings = await loadSettings(db);
-  const minutes = Number(settings[`${mode}_min` as const]);
-  const now = Date.now();
+  const minutes = Number(
+    kind === "break" ? settings.break_min : kind === "switch" ? settings.switch_min : settings[`${body.mode}_min` as const],
+  );
 
+  let title = "Your next thing";
+  let firstStep = "Just open it.";
+  let taskId: string | null = null;
+  if (kind === "break") {
+    const idea = await pickBreak(body.mode).catch(() => ({ idea: "Step away from the screen for a bit.", firstStep: "" }));
+    title = idea.idea;
+    firstStep = idea.firstStep;
+  } else if (body.taskId) {
+    const task = await getTask(body.taskId);
+    if (task) {
+      title = task.title;
+      firstStep = task.firstStep;
+      taskId = task.id;
+    }
+  }
+
+  const now = Date.now();
   // Only one running session at a time: end any leftover one first.
   await db.from("sessions").update({ status: "stopped" }).eq("status", "running");
   const { data, error } = await db
     .from("sessions")
     .insert({
-      kind: "focus",
-      mode,
-      // Slice 3 replaces this with a real Notion Today task.
-      task_title: "Your next thing",
-      first_step: "Just open it.",
+      kind,
+      mode: body.mode,
+      notion_task_id: taskId,
+      task_title: title,
+      first_step: firstStep,
       started_at: new Date(now).toISOString(),
       ends_at: new Date(now + minutes * 60_000).toISOString(),
     })
     .select("*")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (body.fromSessionId) {
+    await db.from("sessions").update({ handled_at: new Date().toISOString() }).eq("id", body.fromSessionId);
+    if (kind === "break" || kind === "switch") {
+      await db.from("events").insert({ session_id: body.fromSessionId, action: kind });
+    }
+  }
   return NextResponse.json({ session: sessionOut(data) });
 }
