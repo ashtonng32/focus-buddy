@@ -184,6 +184,7 @@ export function FocusBuddy() {
         <DoneScreen
           title={lastEnded.taskTitle}
           notionFailed={lastEnded.notionFailed}
+          tasksApp={app.tasksApp}
           busy={busy}
           onNext={() => app.resolve(lastEnded.id, "handled")}
           onBreak={() => begin({ kind: "break", mode, fromSessionId: lastEnded.id })}
@@ -196,10 +197,10 @@ export function FocusBuddy() {
     if (lastEnded.talking) {
       return (
         <TalkScreen
-          message={stuckPrompt(lastEnded.taskTitle)}
+          message={stuckPrompt(lastEnded.taskTitle, app.tasksApp)}
           copied={copied}
-          claudeHref={claudeLink(lastEnded.taskTitle)}
-          onCopy={async () => setCopied(await copyPrompt(lastEnded.taskTitle))}
+          claudeHref={claudeLink(lastEnded.taskTitle, app.tasksApp)}
+          onCopy={async () => setCopied(await copyPrompt(lastEnded.taskTitle, app.tasksApp))}
           onBack={() => app.resolve(lastEnded.id, "back")}
           onStop={() => app.stop()}
         />
@@ -215,9 +216,9 @@ export function FocusBuddy() {
           openPreview("switch", mode, lastEnded.notionTaskId ? [lastEnded.notionTaskId] : [], lastEnded.id)
         }
         onTalk={async () => {
-          copyPrompt(lastEnded.taskTitle); // inside the tap, so the browser allows it
+          copyPrompt(lastEnded.taskTitle, app.tasksApp); // inside the tap, so the browser allows it
           await app.resolve(lastEnded.id, "talk");
-          window.location.href = claudeLink(lastEnded.taskTitle);
+          window.location.href = claudeLink(lastEnded.taskTitle, app.tasksApp);
         }}
         onWaiting={
           lastEnded.notionTaskId ? () => setWaitingFor({ id: lastEnded.id, title: lastEnded.taskTitle }) : undefined

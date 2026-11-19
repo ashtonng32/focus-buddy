@@ -1,4 +1,4 @@
-import type { Task } from "./notion";
+import type { Task } from "./tasks";
 
 export type Mode = "low" | "steady" | "flow";
 

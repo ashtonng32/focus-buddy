@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authedDb, loadSettings, sessionOut, unauthorized, type Kind, type Mode } from "@/lib/server/api";
-import { getTask } from "@/lib/server/notion";
+import { getTask } from "@/lib/server/tasks";
 import { pickBreak } from "@/lib/server/breaks";
 
 const MODES: Mode[] = ["low", "steady", "flow"];

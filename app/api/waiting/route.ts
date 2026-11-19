@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { authedDb, unauthorized, type SessionRow } from "@/lib/server/api";
-import { markTaskWaiting } from "@/lib/server/notion";
+import { markWaiting } from "@/lib/server/tasks";
 
-// "Moved it forward": the task can't be finished yet. It goes to Waiting On in Notion
-// (off Today, with a note), and this block ends without counting as done.
+// "Moved it forward": the task can't be finished yet. It goes off Today with a note
+// (Notion: Waiting On; Linear: a comment), and this block ends without counting as done.
 export async function POST(req: Request) {
   const db = await authedDb();
   if (!db) return unauthorized();
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   if (!session) return NextResponse.json({ ok: true, ignored: true });
 
   let notionFailed = false;
-  if (session.notion_task_id) notionFailed = !(await markTaskWaiting(session.notion_task_id, note ?? ""));
+  if (session.notion_task_id) notionFailed = !(await markWaiting(session.notion_task_id, note ?? ""));
 
   await db
     .from("sessions")

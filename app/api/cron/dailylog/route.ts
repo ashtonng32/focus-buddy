@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { fetchToday, upsertDailyLog, type DailyNumbers } from "@/lib/server/notion";
+import { getTodayTasks, supportsAvoided, writeDailyLog, type DailyNumbers } from "@/lib/server/tasks";
 
 const TZ = () => process.env.APP_TIMEZONE || "America/Denver";
 
@@ -23,7 +23,7 @@ function localParts(d: Date) {
 const MODE_NAMES = { low: "Low", steady: "Steady", flow: "Flow" } as const;
 
 // Called hourly by pg_cron. From 8 pm local time on, fills the day's Daily Log row in Notion from the
-// daily_summary view (later runs refresh the numbers). Does nothing on a day with no blocks.
+// daily_summary view (later runs refresh the numbers). Notion: a row; Linear: a line in the Daily Log document. Does nothing on a day with no blocks.
 // ?dry=1 shows the numbers without writing; ?force=1 skips the 8 pm check; ?date=YYYY-MM-DD picks a day.
 export async function POST(req: Request) {
   if (!process.env.CRON_SECRET || req.headers.get("x-cron-secret") !== process.env.CRON_SECRET) {
@@ -41,8 +41,11 @@ export async function POST(req: Request) {
   const { data } = await db.from("daily_summary").select("*").eq("day", day).maybeSingle();
 
   // Avoided: hit 3+ times (skipped or switched away from) in 7 days, and still open on Today.
-  const { data: hits } = await db.from("task_avoidance").select("notion_task_id, task_title, total").gte("total", 3);
-  const open = new Set((await fetchToday().catch(() => [])).map((t) => t.id));
+  // Only the Notion Daily Log has an Avoided tasks field; the Linear log line does not.
+  const { data: hits } = supportsAvoided()
+    ? await db.from("task_avoidance").select("notion_task_id, task_title, total").gte("total", 3)
+    : { data: [] };
+  const open = new Set((await getTodayTasks().catch(() => [])).map((t) => t.id));
   const avoided = (hits ?? []).filter((h) => open.has(h.notion_task_id));
 
   // A day with no blocks still gets a row when something is being avoided: that is when the offer helps.
@@ -64,6 +67,6 @@ export async function POST(req: Request) {
   const label = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).format(
     new Date(`${day}T12:00:00Z`),
   );
-  const row = await upsertDailyLog(day, label, numbers);
+  const row = await writeDailyLog(day, label, numbers);
   return NextResponse.json({ logged: true, ...row, day, numbers });
 }

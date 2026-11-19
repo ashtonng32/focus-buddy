@@ -43,9 +43,9 @@ export function PreviewClient() {
     case "break-over":
       return <BreakScreen idea="" note="" remainingMs={0} over onAnother={noop} onBack={noop} onStop={noop} />;
     case "done":
-      return <DoneScreen title={task.title} notionFailed={false} busy={false} onNext={noop} onBreak={noop} onStop={noop} />;
+      return <DoneScreen title={task.title} notionFailed={false} tasksApp="Linear" busy={false} onNext={noop} onBreak={noop} onStop={noop} />;
     case "done-fail":
-      return <DoneScreen title={task.title} notionFailed busy={false} onNext={noop} onBreak={noop} onStop={noop} />;
+      return <DoneScreen title={task.title} notionFailed tasksApp="Linear" busy={false} onNext={noop} onBreak={noop} onStop={noop} />;
     case "stuck":
       return <StuckScreen busy={false} onBreak={noop} onSwitch={noop} onTalk={noop} onWaiting={noop} onStop={noop} />;
     case "waiting":
@@ -53,7 +53,7 @@ export function PreviewClient() {
     case "back":
       return <BackToTaskScreen title={task.title} minutes={{ low: 10, steady: 50, flow: 90 }} busy={false} onPick={noop} onElse={noop} onStop={noop} />;
     case "talk":
-      return <TalkScreen message={stuckPrompt(task.title)} copied={null} claudeHref={claudeLink(task.title)} onCopy={noop} onBack={noop} onStop={noop} />;
+      return <TalkScreen message={stuckPrompt(task.title, "Linear")} copied={null} claudeHref={claudeLink(task.title, "Linear")} onCopy={noop} onBack={noop} onStop={noop} />;
     default:
       return <StartScreen minutes={{ low: 10, steady: 50, flow: 90 }} busy={false} failed={false} push={null} onPick={noop} />;
   }

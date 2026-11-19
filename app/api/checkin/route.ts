@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authedDb, loadSettings, unauthorized, type SessionRow } from "@/lib/server/api";
-import { markTaskDone } from "@/lib/server/notion";
+import { markDone } from "@/lib/server/tasks";
 
 type Action = "keep_going" | "done" | "stuck" | "back";
 
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
         .not("notion_task_id", "is", null);
     }
   } else if (action === "done") {
-    if (session.notion_task_id) notionFailed = !(await markTaskDone(session.notion_task_id));
+    if (session.notion_task_id) notionFailed = !(await markDone(session.notion_task_id));
     await db.from("sessions").update({ status: "done", notion_failed: notionFailed }).eq("id", session.id);
   } else {
     await db.from("sessions").update({ status: "stuck" }).eq("id", session.id);

@@ -1,20 +1,8 @@
-// Thin Notion client (plain fetch). Notion stays the source of truth for tasks and breaks;
-// Focus Buddy only reads Today and writes back Done.
+// Notion implementation of TasksProvider (plain fetch). Moved here unchanged from lib/server/notion.ts.
+import type { DailyNumbers, Task, TasksProvider } from "./types";
+
 const API = "https://api.notion.com/v1";
 const VERSION = "2025-09-03"; // the API version that supports data sources
-
-export type Effort = "Quick" | "Medium" | "Big";
-
-export type Task = {
-  id: string;
-  title: string;
-  status: string;
-  effort: Effort | null;
-  due: string | null; // YYYY-MM-DD (or ISO datetime)
-  firstStep: string;
-  parentId: string | null;
-  subtaskIds: string[];
-};
 
 async function notion<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(API + path, {
@@ -32,7 +20,7 @@ async function notion<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export function parseTask(page: any): Task {
+function parseTask(page: any): Task {
   const p = page.properties;
   const plain = (rt: any[] | undefined) => (rt ?? []).map((x) => x.plain_text).join("");
   // First step: the task's "First Step" (or "First Steps") field if filled, else the first line of Notes, else a nudge.
@@ -54,7 +42,7 @@ export function parseTask(page: any): Task {
 // Cache Today for 60 seconds (Notion rate limits); cleared whenever we write.
 let cache: { at: number; tasks: Task[] } | null = null;
 
-export async function fetchToday(): Promise<Task[]> {
+async function fetchToday(): Promise<Task[]> {
   if (cache && Date.now() - cache.at < 60_000) return cache.tasks;
   const tasks: Task[] = [];
   let cursor: string | undefined;
@@ -79,7 +67,7 @@ export async function fetchToday(): Promise<Task[]> {
   return tasks;
 }
 
-export async function getTask(id: string): Promise<Task | null> {
+async function getTask(id: string): Promise<Task | null> {
   const cached = (await fetchToday().catch(() => [])).find((t) => t.id === id);
   if (cached) return cached;
   try {
@@ -103,7 +91,7 @@ async function setDone(id: string) {
 }
 
 /** Marks the task Done, and every subtask too when it is a parent. Returns false if any write failed. */
-export async function markTaskDone(id: string): Promise<boolean> {
+async function markTaskDone(id: string): Promise<boolean> {
   const task = await getTask(id);
   const ids = [id, ...(task?.subtaskIds ?? [])];
   let ok = true;
@@ -128,7 +116,7 @@ async function children(id: string): Promise<Block[]> {
 const text = (b: Block) => ((b[b.type]?.rich_text ?? []) as any[]).map((x) => x.plain_text).join("").trim();
 
 /** Reads the Ideas For A Break page: headings (Spiritual, Learning, Fun) over bullet lists, even inside columns. */
-export async function fetchBreakLists(): Promise<Record<string, string[]>> {
+async function fetchBreakLists(): Promise<Record<string, string[]>> {
   const lists: Record<string, string[]> = {};
   let current: string | null = null;
   async function walk(id: string) {
@@ -148,25 +136,12 @@ export async function fetchBreakLists(): Promise<Record<string, string[]>> {
   return lists;
 }
 
-export type DailyNumbers = {
-  mode: "Low" | "Steady" | "Flow" | null;
-  focusMinutes: number;
-  blocks: number;
-  tasksDone: number;
-  keepGoings: number;
-  stuckTaps: number;
-  switches: number;
-  breaks: number;
-  /** Notion page ids of tasks avoided 3+ times in the last 7 days; replaces the row's Avoided tasks. */
-  avoided: string[];
-};
-
 /**
  * Fills in the Daily Log row for `day` (YYYY-MM-DD) with Focus Buddy's numbers. Duet may already
  * have created the row the night before (Date, Day, Day type); if so only the numbers are written,
  * otherwise a new row is created. Never touches Day type, Day feel, Sleep or Journal.
  */
-export async function upsertDailyLog(day: string, label: string, n: DailyNumbers): Promise<{ id: string; created: boolean }> {
+async function upsertDailyLog(day: string, label: string, n: DailyNumbers): Promise<{ id: string; created: boolean }> {
   const ds = process.env.NOTION_DAILYLOG_DS;
   const found = await notion<any>(`/data_sources/${ds}/query`, {
     method: "POST",
@@ -206,7 +181,7 @@ export async function upsertDailyLog(day: string, label: string, n: DailyNumbers
 }
 
 /** "Moved it forward" but can't finish: Waiting On, off Today, with a dated note added to Notes. */
-export async function markTaskWaiting(id: string, note: string): Promise<boolean> {
+async function markTaskWaiting(id: string, note: string): Promise<boolean> {
   try {
     const page = await notion<any>(`/pages/${id}`);
     const existing = ((page.properties.Notes?.rich_text ?? []) as any[]).map((x) => x.plain_text).join("");
@@ -229,3 +204,12 @@ export async function markTaskWaiting(id: string, note: string): Promise<boolean
     return false;
   }
 }
+
+export const notionProvider: TasksProvider = {
+  getTodayTasks: fetchToday,
+  getTask,
+  markDone: markTaskDone,
+  markWaiting: markTaskWaiting,
+  getBreakIdeas: fetchBreakLists,
+  writeDailyLog: upsertDailyLog,
+};

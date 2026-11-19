@@ -45,6 +45,8 @@ export type SuggestedTask = { id: string | null; title: string; firstStep: strin
 // Minutes. PRD defaults, used until the server answers.
 export const DEFAULTS: Settings = { low: 10, steady: 50, flow: 90, keepGoing: 30, break: 15, switch: 20 };
 
+export type TasksApp = "Notion" | "Linear";
+
 type State = {
   ready: boolean;
   failed: boolean;
@@ -52,6 +54,8 @@ type State = {
   lastEnded: LastEnded | null;
   resume: Resume | null;
   settings: Settings;
+  /** Where tasks live, for on-screen copy. */
+  tasksApp: TasksApp;
   /** serverNow - Date.now(): add to Date.now() to get server time. */
   offset: number;
 };
@@ -75,6 +79,7 @@ export function useAppState() {
     lastEnded: null,
     resume: null,
     settings: DEFAULTS,
+    tasksApp: "Notion",
     offset: 0,
   });
 
@@ -90,6 +95,7 @@ export function useAppState() {
         lastEnded: j.lastEnded,
         resume: j.resume,
         settings: j.settings,
+        tasksApp: j.tasksApp === "Linear" ? "Linear" : "Notion",
         offset: j.serverNow - Date.now(),
       });
     } catch {
@@ -128,7 +134,7 @@ export function useAppState() {
   return {
     ...state,
     refresh,
-    /** Today tasks from Notion in suggestion order for this mode. */
+    /** Today tasks in suggestion order for this mode. */
     async today(mode: Mode, exclude: string[] = []): Promise<SuggestedTask[]> {
       try {
         const j = await call(`/api/today?mode=${mode}&exclude=${exclude.join(",")}`, undefined, "GET");
@@ -146,7 +152,7 @@ export function useAppState() {
     checkin: (action: "keep_going" | "done" | "stuck" | "back") =>
       act(() => call("/api/checkin", { sessionId: state.session?.id, action })),
     resolve: (sessionId: string, action: "talk" | "handled" | "back") => act(() => call("/api/resolve", { sessionId, action })),
-    /** Moved it forward but can't finish: Waiting On in Notion, off Today. */
+    /** Moved it forward but can't finish: Waiting On (off Today, with a comment). */
     waiting: (sessionId: string, note: string) => act(() => call("/api/waiting", { sessionId, note })),
     anotherIdea: () => act(() => call("/api/break", {})),
     stop: () =>

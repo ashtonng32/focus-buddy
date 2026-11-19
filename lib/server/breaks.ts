@@ -1,4 +1,4 @@
-import { fetchBreakLists } from "./notion";
+import { getBreakIdeas } from "./tasks";
 import type { Mode } from "./suggest";
 
 const MOVEMENT = /workout|walk|bike|stretch|run|yoga|exercise/i;
@@ -21,7 +21,7 @@ function section(lists: Record<string, string[]>, name: string) {
  * `current` is skipped on "Another idea"; the first pick for Flow favors movement.
  */
 export async function pickBreak(mode: Mode, current?: string) {
-  const lists = await fetchBreakLists();
+  const lists = await getBreakIdeas();
   const spiritual = section(lists, "spiritual");
   const learning = section(lists, "learning");
   const fun = section(lists, "fun");

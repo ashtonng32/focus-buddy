@@ -377,6 +377,7 @@ export function BreakScreen({
 export function DoneScreen({
   title,
   notionFailed,
+  tasksApp,
   busy,
   onNext,
   onBreak,
@@ -384,6 +385,7 @@ export function DoneScreen({
 }: {
   title: string;
   notionFailed: boolean;
+  tasksApp: string;
   busy: boolean;
   onNext: () => void;
   onBreak: () => void;
@@ -406,7 +408,7 @@ export function DoneScreen({
         <p className="text-[#6c6290]">&ldquo;{title}&rdquo;</p>
         {notionFailed && (
           <p className="rounded-2xl bg-[#fff0d6] px-4 py-3 text-sm text-[#7a4a00]">
-            Notion didn&apos;t save that. Mark it done there when you get a sec.
+            {tasksApp} didn&apos;t save that. Mark it done there when you get a sec.
           </p>
         )}
       </div>

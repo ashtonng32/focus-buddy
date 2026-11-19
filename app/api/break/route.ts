@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { authedDb, loadActive, unauthorized } from "@/lib/server/api";
 import { pickBreak } from "@/lib/server/breaks";
 
-// "Another idea": swap the running break's idea for a different one from the Notion page.
+// "Another idea": swap the running break's idea for a different one from the Ideas For A Break list.
 export async function POST() {
   const db = await authedDb();
   if (!db) return unauthorized();

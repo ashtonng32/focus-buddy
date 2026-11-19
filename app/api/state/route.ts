@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { tasksAppName } from "@/lib/server/tasks";
 import {
   authedDb,
   loadActive,
@@ -60,6 +61,7 @@ export async function GET() {
 
   return NextResponse.json({
     serverNow: Date.now(),
+    tasksApp: tasksAppName(),
     settings: settingsOut(settings),
     session: sessionOut(session),
     lastEnded,
