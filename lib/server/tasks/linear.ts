@@ -26,6 +26,7 @@ type IssueNode = {
   dueDate: string | null;
   state: { name: string };
   parent: { id: string } | null;
+  project: { name: string } | null;
   children: { nodes: { id: string; completedAt: string | null; canceledAt: string | null }[] };
 };
 
@@ -33,6 +34,7 @@ const ISSUE_FIELDS = `
   id title description estimate dueDate
   state { name }
   parent { id }
+  project { name }
   children { nodes { id completedAt canceledAt } }
 `;
 
@@ -49,6 +51,15 @@ function firstStepOf(description: string | null): string {
   const line = (description ?? "").split("\n").map((l) => l.trim()).find(Boolean) ?? "";
   return line.replace(/^(#{1,6}\s+|[-*+]\s+(\[[ xX]\]\s+)?|\d+[.)]\s+)/, "").trim();
 }
+
+/** Projects whose issues are for AI agents, never for Ashton. Override with LINEAR_EXCLUDE_PROJECTS (comma-separated). */
+const hiddenProjects = () =>
+  (process.env.LINEAR_EXCLUDE_PROJECTS ?? "AI Agents")
+    .split(",")
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
+
+const isHidden = (i: IssueNode) => Boolean(i.project && hiddenProjects().includes(i.project.name.trim().toLowerCase()));
 
 function parseIssue(i: IssueNode): Task {
   return {
@@ -88,7 +99,7 @@ async function fetchToday(): Promise<Task[]> {
         }`,
         { filter, after },
       );
-    tasks.push(...data.issues.nodes.map(parseIssue));
+    tasks.push(...data.issues.nodes.filter((i) => !isHidden(i)).map(parseIssue));
     after = data.issues.pageInfo.hasNextPage ? data.issues.pageInfo.endCursor : null;
   } while (after);
   cache = { at: Date.now(), tasks };
@@ -103,7 +114,7 @@ async function getTask(id: string): Promise<Task | null> {
       `query One($id: String!) { issue(id: $id) { ${ISSUE_FIELDS} } }`,
       { id },
     );
-    return data.issue ? parseIssue(data.issue) : null;
+    return data.issue ? parseIssue(data.issue) : null; // lookup by id still works for hidden projects
   } catch {
     return null;
   }
