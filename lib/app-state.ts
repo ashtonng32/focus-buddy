@@ -146,6 +146,8 @@ export function useAppState() {
     checkin: (action: "keep_going" | "done" | "stuck" | "back") =>
       act(() => call("/api/checkin", { sessionId: state.session?.id, action })),
     resolve: (sessionId: string, action: "talk" | "handled" | "back") => act(() => call("/api/resolve", { sessionId, action })),
+    /** Moved it forward but can't finish: Waiting On in Notion, off Today. */
+    waiting: (sessionId: string, note: string) => act(() => call("/api/waiting", { sessionId, note })),
     anotherIdea: () => act(() => call("/api/break", {})),
     stop: () =>
       act(async () => {

@@ -9,6 +9,7 @@ Source: [PRD-V2.md](PRD-V2.md). Same rules as the MVP: one slice at a time, test
 | 0. Duet setup | Daily Log database in Notion, Duet section on AI Instructions | **Done** (Nov 18). Still Ashton's: schedule the 8:30 pm Duet check-in (Sun–Fri) in the Duet research preview |
 | 5. Daily Log | Migration, nightly job, Effort on sessions | **Live** (Nov 18) |
 | 6. Avoidance help | Count switches and skips per task, write Avoided tasks | **Live** (Nov 18), skip recording confirmed in production |
+| + Moved it forward | Waiting button on check-in and Stuck, Notion Waiting On, Duet Mon/Thu cleanup | Built (Nov 18), awaiting ship |
 | 7. Weekly page | Duet writes "Your week" each Sunday | No code; after 5 workdays of data |
 
 ## Notion IDs

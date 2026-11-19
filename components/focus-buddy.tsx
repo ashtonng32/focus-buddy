@@ -13,6 +13,7 @@ import {
   StuckScreen,
   TalkScreen,
   TaskPreviewScreen,
+  WaitingScreen,
 } from "@/components/screens";
 import { useBackStack } from "@/lib/back-stack";
 import { claudeLink, copyPrompt, stuckPrompt } from "@/lib/claude-link";
@@ -50,12 +51,13 @@ export function FocusBuddy() {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<boolean | null>(null);
+  const [waitingFor, setWaitingFor] = useState<{ id: string; title: string } | null>(null);
   const now = useNow(Boolean(session));
 
   // Back swipe: closes the suggested-task screen; never closes the app mid-block.
   useBackStack({
     overlay: Boolean(preview) && !session,
-    hold: Boolean(session || lastEnded || resume),
+    hold: Boolean(session || lastEnded || resume || waitingFor),
     onOverlayBack: () => setPreview(null),
   });
 
@@ -76,6 +78,26 @@ export function FocusBuddy() {
     } finally {
       setBusy(false);
     }
+  }
+
+  // Moved it forward: ask what it's waiting on
+  if (waitingFor) {
+    return (
+      <WaitingScreen
+        title={waitingFor.title}
+        busy={busy}
+        onSave={async (note) => {
+          setBusy(true);
+          try {
+            await app.waiting(waitingFor.id, note);
+            setWaitingFor(null);
+          } finally {
+            setBusy(false);
+          }
+        }}
+        onCancel={() => setWaitingFor(null)}
+      />
+    );
   }
 
   // Running block
@@ -109,6 +131,7 @@ export function FocusBuddy() {
           onKeep={() => app.checkin("keep_going")}
           onDone={() => app.checkin("done")}
           onStuck={() => app.checkin("stuck")}
+          onWaiting={() => setWaitingFor({ id: session.id, title: session.taskTitle })}
           onStop={() => app.stop()}
         />
       );
@@ -196,6 +219,9 @@ export function FocusBuddy() {
           await app.resolve(lastEnded.id, "talk");
           window.location.href = claudeLink(lastEnded.taskTitle);
         }}
+        onWaiting={
+          lastEnded.notionTaskId ? () => setWaitingFor({ id: lastEnded.id, title: lastEnded.taskTitle }) : undefined
+        }
         onStop={() => app.stop()}
       />
     );

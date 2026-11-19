@@ -11,6 +11,7 @@ import {
   StuckScreen,
   TalkScreen,
   TaskPreviewScreen,
+  WaitingScreen,
 } from "@/components/screens";
 import { claudeLink, stuckPrompt } from "@/lib/claude-link";
 
@@ -32,9 +33,9 @@ export function PreviewClient() {
       return <FocusScreen mode={mode} kind="focus" title={task.title} firstStep={task.firstStep} remainingMs={1_650_000} totalMs={3_000_000} onDone={noop} onStuck={noop} onStop={noop} />;
     }
     case "checkin":
-      return <CheckInScreen pitStop={false} onKeep={noop} onDone={noop} onStuck={noop} onStop={noop} />;
+      return <CheckInScreen pitStop={false} onKeep={noop} onDone={noop} onStuck={noop} onWaiting={noop} onStop={noop} />;
     case "pit":
-      return <CheckInScreen pitStop onKeep={noop} onDone={noop} onStuck={noop} onStop={noop} />;
+      return <CheckInScreen pitStop onKeep={noop} onDone={noop} onStuck={noop} onWaiting={noop} onStop={noop} />;
     case "break":
       return <BreakScreen idea="Read scriptures // spiritual book" note="" remainingMs={780_000} over={false} onAnother={noop} onBack={noop} onStop={noop} />;
     case "break-timer":
@@ -46,7 +47,9 @@ export function PreviewClient() {
     case "done-fail":
       return <DoneScreen title={task.title} notionFailed busy={false} onNext={noop} onBreak={noop} onStop={noop} />;
     case "stuck":
-      return <StuckScreen busy={false} onBreak={noop} onSwitch={noop} onTalk={noop} onStop={noop} />;
+      return <StuckScreen busy={false} onBreak={noop} onSwitch={noop} onTalk={noop} onWaiting={noop} onStop={noop} />;
+    case "waiting":
+      return <WaitingScreen title={task.title} busy={false} onSave={noop} onCancel={noop} />;
     case "back":
       return <BackToTaskScreen title={task.title} minutes={{ low: 10, steady: 50, flow: 90 }} busy={false} onPick={noop} onElse={noop} onStop={noop} />;
     case "talk":

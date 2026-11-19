@@ -1,6 +1,6 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { ArrowLeft, Check, ChevronRight, Coffee, MessageCircleHeart, Settings, Shuffle, Sparkles } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ArrowLeft, Check, ChevronRight, Coffee, Hourglass, MessageCircleHeart, Settings, Shuffle, Sparkles } from "lucide-react";
 import type { Mode, SuggestedTask } from "@/lib/app-state";
 import { Blobs, Landscape, Ring } from "./art";
 import { Pill, PillLink, TextButton } from "./pill";
@@ -268,12 +268,14 @@ export function CheckInScreen({
   onKeep,
   onDone,
   onStuck,
+  onWaiting,
   onStop,
 }: {
   pitStop: boolean;
   onKeep: () => void;
   onDone: () => void;
   onStuck: () => void;
+  onWaiting: () => void;
   onStop: () => void;
 }) {
   return (
@@ -299,6 +301,9 @@ export function CheckInScreen({
         </Pill>
         <Pill variant="glass" onClick={onStuck}>
           I&apos;m stuck
+        </Pill>
+        <Pill variant="glass" onClick={onWaiting}>
+          <Hourglass className="size-5" /> Moved it forward
         </Pill>
         <TextButton tone="dark" onClick={onStop}>
           Stop for now
@@ -462,12 +467,14 @@ export function StuckScreen({
   onBreak,
   onSwitch,
   onTalk,
+  onWaiting,
   onStop,
 }: {
   busy: boolean;
   onBreak: () => void;
   onSwitch: () => void;
   onTalk: () => void;
+  onWaiting?: () => void;
   onStop: () => void;
 }) {
   return (
@@ -507,6 +514,17 @@ export function StuckScreen({
             sub="Talk it out with Claude."
             onClick={onTalk}
           />
+          {onWaiting && (
+            <Option
+              Icon={Hourglass}
+              card="bg-[#fff3d6]"
+              iconBg="bg-[#ffe3a0]"
+              iconFg="text-[#8a5a00]"
+              title="Moved it forward"
+              sub="I did what I could. Now I'm waiting on something."
+              onClick={onWaiting}
+            />
+          )}
         </div>
       </div>
       <TextButton onClick={onStop}>Stop for now</TextButton>
@@ -607,6 +625,47 @@ export function TalkScreen({
           I&apos;m back
         </Pill>
         <TextButton onClick={onStop}>Stop for now</TextButton>
+      </div>
+    </Light>
+  );
+}
+
+/* ---------------- Moved it forward (waiting) ---------------- */
+
+export function WaitingScreen({
+  title,
+  busy,
+  onSave,
+  onCancel,
+}: {
+  title: string;
+  busy: boolean;
+  onSave: (note: string) => void;
+  onCancel: () => void;
+}) {
+  const [note, setNote] = useState("");
+  return (
+    <Light>
+      <div className="rise flex flex-1 flex-col justify-center gap-5">
+        <div>
+          <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#8a7fb5]">Moved forward</p>
+          <Title className="text-[2.2rem]">{title}</Title>
+          <p className="mt-2 text-lg text-[#6c6290]">What are you waiting on? One line is plenty.</p>
+        </div>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          placeholder="Need my number. Call back."
+          className="w-full resize-none rounded-3xl bg-white p-4 text-lg text-[#3a2f66] shadow-[0_12px_30px_-20px_rgba(60,40,140,0.6)] outline-none ring-1 ring-[#e3dcf7] focus:ring-2 focus:ring-[#5b3fd0]"
+        />
+        <p className="text-sm text-[#6c6290]">It moves to Waiting On and leaves your Today list. Duet will check in on it.</p>
+      </div>
+      <div className="flex flex-col gap-3">
+        <Pill variant="light" onClick={() => onSave(note)} disabled={busy} className="min-h-20 text-xl">
+          Save and move on
+        </Pill>
+        <TextButton onClick={onCancel}>Never mind</TextButton>
       </div>
     </Light>
   );

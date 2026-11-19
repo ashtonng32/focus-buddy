@@ -204,3 +204,28 @@ export async function upsertDailyLog(day: string, label: string, n: DailyNumbers
   });
   return { id: res.id as string, created: true };
 }
+
+/** "Moved it forward" but can't finish: Waiting On, off Today, with a dated note added to Notes. */
+export async function markTaskWaiting(id: string, note: string): Promise<boolean> {
+  try {
+    const page = await notion<any>(`/pages/${id}`);
+    const existing = ((page.properties.Notes?.rich_text ?? []) as any[]).map((x) => x.plain_text).join("");
+    const stamp = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/Denver" });
+    const line = `Waiting (${stamp}): ${note.trim() || "moved forward, can't finish yet"}`;
+    const notes = (existing ? existing + "\n" : "") + line;
+    await notion(`/pages/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        properties: {
+          Status: { status: { name: "Waiting On" } },
+          Today: { checkbox: false },
+          Notes: { rich_text: [{ type: "text", text: { content: notes.slice(-1900) } }] },
+        },
+      }),
+    });
+    cache = null;
+    return true;
+  } catch {
+    return false;
+  }
+}
