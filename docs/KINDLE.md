@@ -1,8 +1,40 @@
 # Kindle desk screen
 
 A jailbroken Kindle Touch running KOReader shows Focus Buddy in landscape:
-How are you feeling? → Pick a task → Timer → I'm stuck → Take a break / Work on something else.
-It uses the same API and data as the phone, so the two stay in sync (the Kindle re-checks every minute).
+How are you feeling? → Up next (the suggested task) → Timer → I'm stuck → Take a break / Work on something else.
+It uses the same API and data as the phone, so the two stay in sync (the Kindle re-checks every 5 seconds).
+
+## Flow
+
+- **How are you feeling?** Low / Motivated / Flow, each showing its timer length from Settings.
+- **Up next:** the first task from `/api/today` for that mode (the same Today list and order as the phone),
+  shown large with its first step. **Start · N min**, or **Choose a different task** to step to the next
+  suggestion (recorded with `/api/skip`, like the phone's "Different task").
+- **Timer:** task on the left, minutes left on the right, **I'm stuck** along the bottom.
+- **Time's up:** Keep going / Done / I'm stuck. Stuck → Take a break / Work on something else.
+
+## Sync with the phone
+
+- The plugin polls `/api/state` every 5 s, so starting or stopping a timer on the phone shows up within about
+  5 s. After an error (offline, server down) it retries every 60 s, or tap **Try again**.
+- It redraws only when what's on screen changed, so polls don't flash the e-ink.
+- Each poll briefly blocks the Kindle (about 0.3 s), so a tap now and then can feel a little slow. If the
+  Kindle stays open all day, watch Vercel **Usage** (about 17k requests a day).
+- Polling only happens while Focus Buddy is open and the Kindle is awake.
+
+## Updating the plugin on the Kindle
+
+Replace the folder, skipping the macOS `._` files:
+
+```bash
+rm -rf /Volumes/Kindle/koreader/plugins/focusbuddy.koplugin
+```
+
+```bash
+mkdir /Volumes/Kindle/koreader/plugins/focusbuddy.koplugin && COPYFILE_DISABLE=1 cp kindle/focusbuddy.koplugin/*.lua /Volumes/Kindle/koreader/plugins/focusbuddy.koplugin/
+```
+
+Then eject and restart KOReader.
 
 ## Server setup (once)
 
@@ -26,5 +58,5 @@ To revoke every Kindle sign-in from the server: `update public.kindle_auth set t
 
 - `POST /api/kindle/login` trades the PIN for a signed token.
 - The Kindle sends `Authorization: Bearer <token>` to the normal API routes (`/api/state`, `/api/today`,
-  `/api/session`, `/api/checkin`, `/api/resolve`). `authedDb()` accepts either that token or the usual sign-in.
+  `/api/session`, `/api/checkin`, `/api/resolve`, `/api/skip`). `authedDb()` accepts either that token or the usual sign-in.
 - "Talk it through" and "Moved it forward" stay on the phone.

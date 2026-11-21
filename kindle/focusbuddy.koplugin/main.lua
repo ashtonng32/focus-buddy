@@ -41,9 +41,10 @@ local socketutil = require("socketutil")
 local Screen = Device.screen
 
 local DEFAULT_URL = "https://focus-buddy-lime.vercel.app"
-local POLL_SECONDS = 60 -- how often the screen re-syncs with the server (and updates the minutes)
+local POLL_SECONDS = 5 -- re-sync this often, so starting or stopping on the phone shows up within ~5 s
+local RETRY_SECONDS = 60 -- after an error (offline, server down), try again this often
 local FULL_REFRESH_EVERY = 10 -- partial redraws between full (flashing) ones, to clear ghosting
-local TASKS_PER_PAGE = 4
+local NO_TASK = { id = nil, title = "Up next", firstStep = "Just open it. That's the whole first step." }
 
 local MODES = {
     { id = "low", label = "Low", hint = "Easy" },
@@ -183,7 +184,8 @@ function BuddyView:init()
     self.gap = Screen:scaleBySize(14)
     self.offset = 0 -- server clock minus Kindle clock, in ms
     self.state = nil
-    self.pick = nil -- choosing a task: { kind, mode, fromSessionId, tasks, page }
+    self.pick = nil -- the suggested task before its timer starts: { kind, mode, fromSessionId, tasks, idx }
+    self.sig = nil -- what the screen last showed from the server state; unchanged polls don't redraw
     self.error = nil
     self.busy = false
     self.redraws = 0
@@ -295,6 +297,7 @@ function BuddyView:show(view_name, body)
     local full = view_name ~= self.view_name or self.redraws >= FULL_REFRESH_EVERY
     if full then self.redraws = 0 end
     self.view_name = view_name
+    if self.state then self.sig = self:signature() end
     UIManager:setDirty(self, full and "full" or "ui")
 end
 
@@ -314,7 +317,7 @@ function BuddyView:call(method, path, body)
     end
     self.error = err == "offline" and "Can't reach Focus Buddy. Check the Wi-Fi." or err
     self:render()
-    self:schedule(POLL_SECONDS)
+    self:schedule(RETRY_SECONDS)
     return nil
 end
 
@@ -332,17 +335,40 @@ function BuddyView:sync()
     if val(state.serverNow) then self.offset = state.serverNow - nowMs() end
     local session = val(state.session)
     -- The phone started something (or finished it): drop a half-made task choice.
+    local dropped = false
     if self.pick and (session or (self.pick.fromSessionId and not val(state.lastEnded) and not val(state.resume))) then
         self.pick = nil
+        dropped = true
     end
-    self:render()
-    -- Next sync: every minute, or right when the timer runs out.
-    local wait = POLL_SECONDS
+    -- Only redraw when something on screen changed, so the frequent idle polls don't flash the e-ink.
+    local sig = self:signature()
+    local stale = self.view_name == nil or self.view_name == "loading" or self.view_name == "error" or self.view_name == "login"
+    if dropped or stale or sig ~= self.sig then self:render() end
+    -- Next sync in a few seconds (the minutes left update as part of it; unchanged polls don't redraw).
+    self:schedule(POLL_SECONDS)
+end
+
+-- A short summary of the server state as the screen shows it (including the minutes left).
+function BuddyView:signature()
+    local s = self.state or {}
+    local parts = {}
+    local session = val(s.session)
     if session then
-        local left = (session.endsAt - (nowMs() + self.offset)) / 1000
-        if left > 0 then wait = math.max(5, math.min(POLL_SECONDS, math.ceil(left) + 1)) end
+        local mins, over = self:minutesLeft(session.endsAt)
+        table.insert(parts, "s:" .. tostring(session.id) .. ":" .. tostring(session.kind) .. ":" .. mins .. ":" .. tostring(over)
+            .. ":" .. tostring(val(session.taskTitle)))
     end
-    self:schedule(wait)
+    local last = val(s.lastEnded)
+    if last then
+        table.insert(parts, "l:" .. tostring(last.id) .. ":" .. tostring(last.status) .. ":" .. tostring(val(last.talking)))
+    end
+    local resume = val(s.resume)
+    if resume then table.insert(parts, "r:" .. tostring(resume.id)) end
+    local settings = val(s.settings) or {}
+    for _, k in ipairs({ "low", "steady", "flow", "keepGoing", "switch" }) do
+        table.insert(parts, tostring(val(settings[k])))
+    end
+    return table.concat(parts, "|")
 end
 
 -- Runs an action (one at a time), then re-syncs.
@@ -370,9 +396,23 @@ function BuddyView:openTasks(kind, mode, fromSessionId, exclude)
         for _, t in ipairs(val(data.tasks) or {}) do
             table.insert(tasks, { id = val(t.id), title = val(t.title) or "Untitled", firstStep = val(t.firstStep) })
         end
-        self.pick = { kind = kind, mode = mode, fromSessionId = fromSessionId, tasks = tasks, page = 1 }
+        if #tasks == 0 then tasks = { NO_TASK } end
+        self.pick = { kind = kind, mode = mode, fromSessionId = fromSessionId, tasks = tasks, idx = 1 }
         self:render()
     end)
+end
+
+-- "Choose a different task": move on to the next suggestion, like the phone's "Different task".
+function BuddyView:nextTask()
+    local pick = self.pick
+    if not pick then return end
+    local task = pick.tasks[pick.idx]
+    if task and task.id then
+        -- Same as the phone: note the skip. If the call fails, the swap still happens.
+        pcall(api, "POST", "/api/skip", { taskId = task.id, title = task.title })
+    end
+    pick.idx = pick.idx % #pick.tasks + 1
+    self:render()
 end
 
 function BuddyView:start(kind, mode, taskId, fromSessionId)
@@ -542,41 +582,29 @@ function BuddyView:render()
         ))
     end
 
-    -- Choosing a task ---------------------------------------------------------------------
+    -- The suggested task, before its timer starts: Start, or choose a different one ----------
     if self.pick then
         local pick = self.pick
+        local task = pick.tasks[pick.idx] or NO_TASK
         local mins = val(pick.kind == "switch" and settings.switch or settings[pick.mode])
-        local header = pick.kind == "switch" and "Pick something else" or "Pick a task"
-        local sub = mins and (mins .. " min timer") or nil
-        local rows = VerticalGroup:new{ align = "center" }
-        local first = (pick.page - 1) * TASKS_PER_PAGE + 1
-        local row_h = Screen:scaleBySize(62)
-        if #pick.tasks == 0 then
-            table.insert(rows, self:tileRow({ { lines = { { text = "No tasks for today. Just start", size = 24, bold = true } },
-                dark = true, callback = function() self:start(pick.kind, pick.mode, nil, pick.fromSessionId) end } }, row_h))
+        local actions = {
+            { lines = { { text = mins and ("Start · " .. mins .. " min") or "Start", size = 30, bold = true } }, dark = true,
+              callback = function() self:start(pick.kind, pick.mode, task.id, pick.fromSessionId) end },
+        }
+        if #pick.tasks > 1 then
+            table.insert(actions, { lines = { { text = "Choose a different task", size = 26, bold = true } },
+                callback = function() self:nextTask() end })
         end
-        for i = first, math.min(#pick.tasks, first + TASKS_PER_PAGE - 1) do
-            local t = pick.tasks[i]
-            if i > first then table.insert(rows, VerticalSpan:new{ width = Screen:scaleBySize(8) }) end
-            table.insert(rows, self:tileRow({ { lines = { { text = t.title, size = 22, bold = true } },
-                callback = function() self:start(pick.kind, pick.mode, t.id, pick.fromSessionId) end } }, row_h))
-        end
-        local nav = {}
-        table.insert(nav, { lines = { { text = "Back", size = 20 } }, callback = function()
+        local first_step = val(task.firstStep)
+        return self:show("task", self:column(
+            self:text(pick.kind == "switch" and "Your other task will be waiting." or "Up next", 22),
+            self:text(task.title, 52, true),
+            first_step and self:text("First step: " .. first_step, 24) or VerticalSpan:new{ width = 0 },
+            VerticalSpan:new{ width = Screen:scaleBySize(8) },
+            self:tileRow(actions, Screen:scaleBySize(110)),
             -- From "Something else", Back returns to the stuck question; otherwise to the feelings.
-            self.pick = nil
-            self:render()
-        end })
-        if #pick.tasks > TASKS_PER_PAGE then
-            table.insert(nav, { lines = { { text = "More tasks", size = 20 } }, callback = function()
-                pick.page = pick.page % math.ceil(#pick.tasks / TASKS_PER_PAGE) + 1
-                self:render()
-            end })
-        end
-        return self:show("tasks", self:column(
-            self:message(header, sub),
-            rows,
-            self:tileRow(nav, Screen:scaleBySize(50))
+            self:tileRow({ { lines = { { text = "Back", size = 20 } },
+                callback = function() self.pick = nil; self:render() end } }, Screen:scaleBySize(50))
         ))
     end
 
