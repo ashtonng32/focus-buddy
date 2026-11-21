@@ -45,6 +45,12 @@ local POLL_SECONDS = 5 -- re-sync this often, so starting or stopping on the pho
 local RETRY_SECONDS = 60 -- after an error (offline, server down), try again this often
 local FULL_REFRESH_EVERY = 10 -- partial redraws between full (flashing) ones, to clear ghosting
 local NO_TASK = { id = nil, title = "Up next", firstStep = "Just open it. That's the whole first step." }
+local TAP_GUARD_SECONDS = 2 -- ignore taps this long after the screen changes (see Tile:onTapTile)
+
+-- When the screen last changed to a different page. Taps made while the Kindle was busy (waiting on the
+-- network) are queued and only handled after the next screen is drawn, so a second tap on "Start" would
+-- land on whatever replaced it, such as "I'm stuck". Taps just after a page change are dropped.
+local guard_until = 0
 
 local MODES = {
     { id = "low", label = "Low", hint = "Easy" },
@@ -163,6 +169,7 @@ function Tile:init()
 end
 
 function Tile:onTapTile()
+    if socket.gettime() < guard_until then return true end
     if self.callback then self.callback() end
     return true
 end
@@ -294,6 +301,7 @@ end
 function BuddyView:show(view_name, body)
     self[1] = self:frame(body)
     self.redraws = self.redraws + 1
+    if view_name ~= self.view_name then guard_until = socket.gettime() + TAP_GUARD_SECONDS end
     local full = view_name ~= self.view_name or self.redraws >= FULL_REFRESH_EVERY
     if full then self.redraws = 0 end
     self.view_name = view_name
