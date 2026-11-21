@@ -370,6 +370,18 @@ function BuddyView:openTasks(kind, mode, fromSessionId, exclude)
         for _, t in ipairs(val(data.tasks) or {}) do
             table.insert(tasks, { id = val(t.id), title = val(t.title) or "Untitled", firstStep = val(t.firstStep) })
         end
+        -- Back from a break: the task you were stuck on goes first.
+        local resume = kind == "focus" and self.state and val(self.state.resume)
+        if resume and val(resume.notionTaskId) then
+            for i = #tasks, 1, -1 do
+                if tasks[i].id == resume.notionTaskId then table.remove(tasks, i) end
+            end
+            table.insert(tasks, 1, {
+                id = resume.notionTaskId,
+                title = "Back to: " .. (val(resume.taskTitle) or "your task"),
+                resumeId = resume.id,
+            })
+        end
         self.pick = { kind = kind, mode = mode, fromSessionId = fromSessionId, tasks = tasks, page = 1 }
         self:render()
     end)
@@ -378,6 +390,15 @@ end
 function BuddyView:start(kind, mode, taskId, fromSessionId)
     self.pick = nil
     self:post("/api/session", { kind = kind, mode = mode, taskId = taskId, fromSessionId = fromSessionId })
+end
+
+-- Starts a task picked from the list. Picking something other than "Back to: ..." clears that reminder.
+function BuddyView:startTask(pick, task)
+    local resume = self.state and val(self.state.resume)
+    if pick.kind == "focus" and resume and not task.resumeId then
+        api("POST", "/api/resolve", { sessionId = resume.id, action = "handled" })
+    end
+    self:start(pick.kind, pick.mode, task.id, task.resumeId or pick.fromSessionId)
 end
 
 function BuddyView:askPin()
@@ -559,7 +580,7 @@ function BuddyView:render()
             local t = pick.tasks[i]
             if i > first then table.insert(rows, VerticalSpan:new{ width = Screen:scaleBySize(8) }) end
             table.insert(rows, self:tileRow({ { lines = { { text = t.title, size = 22, bold = true } },
-                callback = function() self:start(pick.kind, pick.mode, t.id, pick.fromSessionId) end } }, row_h))
+                callback = function() self:startTask(pick, t) end } }, row_h))
         end
         local nav = {}
         table.insert(nav, { lines = { { text = "Back", size = 20 } }, callback = function()
@@ -616,19 +637,7 @@ function BuddyView:render()
         ))
     end
 
-    -- Back from a break: return to the task you were stuck on -------------------------------
-    local resume = val(state.resume)
-    if resume then
-        return self:show("resume", self:column(
-            self:message("Back to it?", val(resume.taskTitle)),
-            self:feelingTiles(function(mode) self:start("focus", mode, resume.notionTaskId, resume.id) end),
-            self:tileRow({ { lines = { { text = "Something else", size = 20 } },
-                callback = function() self:post("/api/resolve", { sessionId = resume.id, action = "handled" }) end } },
-                Screen:scaleBySize(50))
-        ))
-    end
-
-    -- Start: How are you feeling? ------------------------------------------------------------
+    -- Start: How are you feeling? (a task you were stuck on shows first in the task list) -----
     return self:show("feeling", self:column(
         self:text("How are you feeling?", 34, true),
         VerticalSpan:new{ width = Screen:scaleBySize(8) },
