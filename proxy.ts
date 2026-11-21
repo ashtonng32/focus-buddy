@@ -2,7 +2,17 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { isAllowed, supabaseConfigured, supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
-const PUBLIC = ["/login", "/auth", "/manifest.webmanifest", "/sw.js", "/icons", "/icon.png", "/apple-icon.png", "/api/cron"];
+const PUBLIC = [
+  "/login",
+  "/auth",
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/icons",
+  "/icon.png",
+  "/apple-icon.png",
+  "/api/cron",
+  "/api/kindle/login",
+];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -13,6 +23,9 @@ export async function proxy(request: NextRequest) {
   }
 
   const isApi = pathname.startsWith("/api/");
+  // The Kindle sends a bearer token instead of a session cookie. Every API route checks it
+  // itself through authedDb(), so it only needs to get past the cookie check here.
+  if (isApi && request.headers.get("authorization")?.startsWith("Bearer ")) return NextResponse.next();
   const toLogin = (reason?: string) => {
     // API callers (including the service worker) need a 401, not a redirect to an HTML page.
     if (isApi) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

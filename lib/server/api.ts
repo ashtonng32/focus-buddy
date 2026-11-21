@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { verifyKindleToken } from "@/lib/server/kindle-auth";
 import { createClient } from "@/lib/supabase/server";
 import { isAllowed } from "@/lib/supabase/env";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,8 +11,13 @@ export type Db = ReturnType<typeof createAdminClient>;
 
 export const unauthorized = () => NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-/** Returns the admin DB client if the caller is the allowed user, else null. */
+/** Returns the admin DB client if the caller is the allowed user (or the signed-in Kindle), else null. */
 export async function authedDb() {
+  const auth = (await headers()).get("authorization");
+  if (auth?.startsWith("Bearer ")) {
+    const db = createAdminClient();
+    return (await verifyKindleToken(db, auth.slice(7).trim())) ? db : null;
+  }
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!isAllowed(data.user?.email)) return null;
