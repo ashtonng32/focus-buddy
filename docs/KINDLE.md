@@ -22,6 +22,21 @@ It uses the same API and data as the phone, so the two stay in sync (the Kindle 
   Kindle stays open all day, watch Vercel **Usage** (about 17k requests a day).
 - Polling only happens while Focus Buddy is open and the Kindle is awake.
 
+## Sleep, auto sleep, and auto-open
+
+- **Open when KOReader starts** (Tools → Focus Buddy, on by default): Focus Buddy opens once each time
+  KOReader starts. Close goes to the file browser as usual.
+- **Sleep** (top bar, next to Close): KOReader's Keep alive sets `preventScreenSaver 1`, which also blocks the
+  power button. Sleep reads that setting from powerd, turns it off, asks KOReader to suspend, and turns it back on
+  when the Kindle wakes (the `Resume` event). If KOReader's suspend doesn't work, it tries
+  `lipc-set-prop -i com.lab126.powerd powerButton 1`, then `powerd_test -p`. If the Kindle is still awake after
+  13 s, Keep alive goes back on and a message shows what was tried. Steps are logged to `koreader/crash.log`
+  (`FocusBuddy sleep:`).
+- **Auto sleep** (Tools → Focus Buddy → Auto sleep, default 6 PM, or Off / 5–10 PM): when the Kindle's clock
+  passes that time while Focus Buddy is open, it sleeps as soon as no focus timer is running. Opening Focus
+  Buddy or waking the Kindle later that evening doesn't trigger it again.
+- For the first minute after waking, a failed sync retries every 5 s (Wi-Fi reconnecting).
+
 ## Updating the plugin on the Kindle
 
 Replace the folder, skipping the macOS `._` files:

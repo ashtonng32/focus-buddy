@@ -25,6 +25,7 @@ local InputDialog = require("ui/widget/inputdialog")
 local JSON = require("json")
 local LeftContainer = require("ui/widget/container/leftcontainer")
 local OverlapGroup = require("ui/widget/overlapgroup")
+local PluginShare = require("pluginshare")
 local RightContainer = require("ui/widget/container/rightcontainer")
 local Size = require("ui/size")
 local TextBoxWidget = require("ui/widget/textboxwidget")
@@ -46,6 +47,8 @@ local RETRY_SECONDS = 60 -- after an error (offline, server down), try again thi
 local FULL_REFRESH_EVERY = 10 -- partial redraws between full (flashing) ones, to clear ghosting
 local NO_TASK = { id = nil, title = "Up next", firstStep = "Just open it. That's the whole first step." }
 local TAP_GUARD_SECONDS = 2 -- ignore taps this long after the screen changes (see Tile:onTapTile)
+local AUTO_SLEEP_DEFAULT_HOUR = 18 -- auto sleep at 6 PM unless changed in Tools -> Focus Buddy -> Auto sleep
+local SLEEP_CHECK_SECONDS = 13 -- if the Kindle still isn't asleep by then (all routes tried), put Keep alive back
 
 -- When the screen last changed to a different page. Taps made while the Kindle was busy (waiting on the
 -- network) are queued and only handled after the next screen is drawn, so a second tap on "Start" would
@@ -196,8 +199,132 @@ function BuddyView:init()
     self.error = nil
     self.busy = false
     self.redraws = 0
-    self.tick = function() self:sync() end
+    self.restore_keepalive = false -- we turned Keep alive off to sleep; turn it back on when the Kindle wakes
+    self.sleep_pending = false -- asked the Kindle to sleep, waiting for it to happen
+    self.resumed_at = 0 -- when the Kindle last woke up (socket.gettime)
+    self.was_before_sleep_time = self:beforeSleepTime()
+    self.auto_sleep_due = false
+    self.tick = function()
+        if self:checkAutoSleep() then return end
+        self:sync()
+    end
     self[1] = self:frame(self:message("Focus Buddy", "Connecting…"))
+end
+
+-- Sleep ---------------------------------------------------------------------------------------
+-- Keep alive (the KOReader plugin) stops the Kindle from sleeping, power button included. Sleep turns
+-- it off just for this sleep and turns it back on when the Kindle wakes (the "Resume" event).
+
+local function sleepHour()
+    local h = setting("focusbuddy_sleep_hour")
+    if h == nil then return AUTO_SLEEP_DEFAULT_HOUR end
+    return h -- -1 means off
+end
+
+function BuddyView:beforeSleepTime()
+    local h = sleepHour()
+    return h < 0 or os.date("*t").hour < h
+end
+
+-- Auto sleep: once the clock passes the sleep time while Focus Buddy is open (not if it was opened after),
+-- sleep as soon as no timer is running. Returns true if it put the Kindle to sleep.
+function BuddyView:checkAutoSleep()
+    local before = self:beforeSleepTime()
+    if self.was_before_sleep_time and not before then self.auto_sleep_due = true end
+    self.was_before_sleep_time = before
+    if not self.auto_sleep_due then return false end
+    local session = self.state and val(self.state.session)
+    if session and session.kind ~= "break" then
+        local _, over = self:minutesLeft(session.endsAt)
+        if not over then return false end -- let the running timer finish first
+    end
+    self.auto_sleep_due = false
+    self:sleepNow()
+    return true
+end
+
+-- Runs a shell command and returns its output (trimmed).
+local function sh(cmd)
+    local f = io.popen(cmd .. " 2>&1")
+    if not f then return "" end
+    local out = f:read("*a") or ""
+    f:close()
+    return (out:gsub("%s+$", ""))
+end
+
+local function powerdProp(name)
+    if not Device:isKindle() then return "" end
+    return sh("lipc-get-prop com.lab126.powerd " .. name)
+end
+
+local function asleep()
+    local state = powerdProp("state")
+    return state == "screenSaver" or state == "suspended"
+end
+
+-- Ways to ask the Kindle to sleep, tried in order until it does (all simulate a power-button press).
+local SLEEP_ROUTES = {
+    { at = 1, name = "KOReader suspend", run = function() UIManager:suspend() end },
+    { at = 5, name = "powerButton (lipc)", run = function() sh("lipc-set-prop -i com.lab126.powerd powerButton 1") end },
+    { at = 9, name = "powerd_test -p", run = function() sh("powerd_test -p") end },
+}
+
+function BuddyView:sleepNow()
+    if self.sleep_pending then return end
+    logger.info("FocusBuddy sleep: start; keepalive", tostring(PluginShare.keepalive),
+        "state", powerdProp("state"), "preventScreenSaver", powerdProp("preventScreenSaver"))
+    if Device:isKindle() and (PluginShare.keepalive or powerdProp("preventScreenSaver") == "1") then
+        local out = sh("lipc-set-prop -i com.lab126.powerd preventScreenSaver 0")
+        logger.info("FocusBuddy sleep: keep alive off:", out, "-> preventScreenSaver", powerdProp("preventScreenSaver"))
+        PluginShare.keepalive = false
+        self.restore_keepalive = true
+    end
+    self.sleep_pending = true
+    UIManager:unschedule(self.tick)
+    local tried = {}
+    for _, route in ipairs(SLEEP_ROUTES) do
+        UIManager:scheduleIn(route.at, function()
+            -- Stop once it's asleep, so a second "press" doesn't wake it straight back up.
+            if not self.sleep_pending or asleep() then return end
+            table.insert(tried, route.name)
+            local ok, err = pcall(route.run)
+            logger.info("FocusBuddy sleep: tried", route.name, ok and "" or tostring(err), "-> state", powerdProp("state"))
+        end)
+    end
+    -- If the Kindle still didn't go to sleep, put Keep alive back and say what happened.
+    UIManager:scheduleIn(SLEEP_CHECK_SECONDS, function()
+        if not self.sleep_pending or asleep() then return end
+        self.sleep_pending = false
+        local prevent = powerdProp("preventScreenSaver")
+        local state = powerdProp("state")
+        self:restoreKeepalive()
+        logger.warn("FocusBuddy sleep: failed; tried", table.concat(tried, ", "), "state", state, "preventScreenSaver", prevent)
+        UIManager:show(InfoMessage:new{
+            text = "The Kindle didn't go to sleep. Keep alive is back on.\n\nTried: " .. table.concat(tried, ", ")
+                .. "\nPower state: " .. state .. " · preventScreenSaver was " .. prevent,
+        })
+        self:schedule(POLL_SECONDS)
+    end)
+end
+
+function BuddyView:restoreKeepalive()
+    if not self.restore_keepalive then return end
+    sh("lipc-set-prop -i com.lab126.powerd preventScreenSaver 1")
+    PluginShare.keepalive = true
+    self.restore_keepalive = false
+end
+
+function BuddyView:onSuspend()
+    self.sleep_pending = false
+    UIManager:unschedule(self.tick)
+end
+
+function BuddyView:onResume()
+    self:restoreKeepalive()
+    self.resumed_at = socket.gettime()
+    self.was_before_sleep_time = self:beforeSleepTime()
+    -- Give Wi-Fi a moment to reconnect, then catch up with the phone.
+    self:schedule(3)
 end
 
 function BuddyView:onShow()
@@ -248,7 +375,12 @@ function BuddyView:frame(body)
         },
         RightContainer:new{
             dimen = bar_dimen,
-            self:smallButton("Close", function() self:close() end),
+            HorizontalGroup:new{
+                align = "center",
+                self:smallButton("Sleep", function() self:sleepNow() end),
+                HorizontalSpan:new{ width = self.gap },
+                self:smallButton("Close", function() self:close() end),
+            },
         },
     }
     return FrameContainer:new{
@@ -325,7 +457,8 @@ function BuddyView:call(method, path, body)
     end
     self.error = err == "offline" and "Can't reach Focus Buddy. Check the Wi-Fi." or err
     self:render()
-    self:schedule(RETRY_SECONDS)
+    -- Just woke up: Wi-Fi is probably still reconnecting, so keep trying every few seconds for a minute.
+    self:schedule(socket.gettime() - self.resumed_at < 60 and POLL_SECONDS or RETRY_SECONDS)
     return nil
 end
 
@@ -681,8 +814,42 @@ local FocusBuddy = WidgetContainer:extend{
     is_doc_only = false,
 }
 
+local function autostartOn()
+    return G_reader_settings:nilOrTrue("focusbuddy_autostart")
+end
+
 function FocusBuddy:init()
     self.ui.menu:registerToMainMenu(self)
+    -- Open Focus Buddy when KOReader starts. Plugins are set up again each time a book or the file browser
+    -- opens, so PluginShare (kept for the whole KOReader run) makes sure this happens only once per start.
+    if autostartOn() and not PluginShare.focusbuddy_autostarted then
+        PluginShare.focusbuddy_autostarted = true
+        UIManager:scheduleIn(0.5, function() self:open() end)
+    end
+end
+
+local function hourLabel(h)
+    if h < 0 then return "Off" end
+    local h12 = h % 12
+    if h12 == 0 then h12 = 12 end
+    return h12 .. (h < 12 and " AM" or " PM")
+end
+
+-- Tools -> Focus Buddy -> Auto sleep: Off, or a time in the evening (default 6 PM).
+local function autoSleepMenu()
+    local items = {}
+    for _, h in ipairs({ -1, 17, 18, 19, 20, 21, 22 }) do
+        table.insert(items, {
+            text = hourLabel(h),
+            radio = true,
+            checked_func = function() return sleepHour() == h end,
+            callback = function()
+                G_reader_settings:saveSetting("focusbuddy_sleep_hour", h)
+                G_reader_settings:flush()
+            end,
+        })
+    end
+    return items
 end
 
 function FocusBuddy:addToMainMenu(menu_items)
@@ -693,6 +860,18 @@ function FocusBuddy:addToMainMenu(menu_items)
             {
                 text = "Open Focus Buddy",
                 callback = function() self:open() end,
+            },
+            {
+                text = "Open when KOReader starts",
+                checked_func = autostartOn,
+                callback = function()
+                    G_reader_settings:saveSetting("focusbuddy_autostart", not autostartOn())
+                    G_reader_settings:flush()
+                end,
+            },
+            {
+                text_func = function() return "Auto sleep: " .. hourLabel(sleepHour()) end,
+                sub_item_table_func = autoSleepMenu,
             },
             {
                 text = "Sign out this Kindle",
